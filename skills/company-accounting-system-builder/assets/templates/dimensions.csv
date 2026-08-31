@@ -1,0 +1,2 @@
+dimension_id,dimension_type,dimension_name,parent_id,status,effective_from,effective_to
+COMPANY_TOTAL,COMPANY,Company total,,ACTIVE,,

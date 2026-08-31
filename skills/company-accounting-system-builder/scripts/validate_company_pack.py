@@ -14,6 +14,8 @@ from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+from validate_management_reporting import validate_management_reporting
+
 
 REQUIRED_FILES = [
     "company-profile.json",
@@ -23,9 +25,18 @@ REQUIRED_FILES = [
     "applicable-framework.md",
     "system-recommendation.md",
     "accounting-policy-register.json",
+    "allocation-policy-register.json",
     "chart-of-accounts.csv",
     "transaction-intake.csv",
     "journal.csv",
+    "dimensions.csv",
+    "management-attribution.csv",
+    "management-adjustments.csv",
+    "budgets.csv",
+    "management-report-definition.json",
+    "management-dashboard-config.json",
+    "management-report.json",
+    "management-dashboard.md",
     "evidence-register.csv",
     "open-items.csv",
     "reconciliations.md",
@@ -37,7 +48,10 @@ REQUIRED_FILES = [
 
 CSV_REQUIRED_HEADERS = {
     "chart-of-accounts.csv": {
-        "account_code", "account_name", "account_type", "normal_balance", "review_status"
+        "account_code", "account_name", "account_type", "normal_balance", "pnl_category",
+        "pnl_line_id", "cost_function", "cost_nature", "cost_traceability",
+        "cost_behavior", "responsibility_center", "cash_classification", "allocation_policy_id",
+        "dimension_required", "review_status"
     },
     "transaction-intake.csv": {
         "intake_id", "economic_event_id", "transaction_date", "description",
@@ -46,15 +60,36 @@ CSV_REQUIRED_HEADERS = {
     },
     "journal.csv": {
         "entry_id", "line_no", "entry_date", "economic_event_id", "account_code",
-        "debit", "credit", "currency", "document_id", "policy_id", "posting_status"
+        "debit", "credit", "currency", "functional_debit", "functional_credit",
+        "functional_amount", "fx_rate", "fx_source_ref", "dimension_project",
+        "dimension_product", "dimension_channel", "dimension_location", "document_id",
+        "policy_id", "posting_status"
     },
     "evidence-register.csv": {
         "document_id", "document_type", "source_locator", "document_date",
-        "economic_event_id", "completeness_status", "sensitivity_class"
+        "content_sha256", "economic_event_id", "completeness_status", "sensitivity_class"
     },
     "open-items.csv": {
         "open_item_id", "item_type", "description", "status", "owner", "next_action",
         "due_date", "blocks_close", "professional_review_required"
+    },
+    "dimensions.csv": {
+        "dimension_id", "dimension_type", "dimension_name", "parent_id", "status",
+        "effective_from", "effective_to"
+    },
+    "management-attribution.csv": {
+        "attribution_id", "report_id", "entry_id", "line_no", "dimension_type",
+        "dimension_id", "attribution_type", "ratio", "amount", "allocation_policy_id",
+        "source_locator", "status"
+    },
+    "management-adjustments.csv": {
+        "adjustment_id", "report_id", "period_start", "period_end", "line_id",
+        "account_code", "dimension_id", "adjustment_type", "amount", "reason", "policy_id",
+        "source_locator", "approved_by", "status", "reverse_on"
+    },
+    "budgets.csv": {
+        "budget_id", "period_start", "period_end", "line_id", "dimension_id",
+        "currency", "amount", "source_locator", "status", "approved_by", "approved_at"
     },
 }
 
@@ -699,16 +734,17 @@ def validate_manifest(data, pack_dir: Path, stage: str, state, report: Report) -
     required = {
         "schema_version", "skill_name", "skill_version", "company_pack_version",
         "status", "workflow_stage", "current_gate", "feature_selection_revision",
-        "feature_selection_status", "output_files", "validation", "generated_at",
-        "updated_at"
+        "feature_selection_status", "management_report_revision",
+        "management_report_status", "management_report_ledger_sha256",
+        "output_files", "validation", "generated_at", "updated_at"
     }
     missing = sorted(required - set(data))
     if missing:
         report.error(f"version-manifest.json: missing fields {', '.join(missing)}")
-    if data.get("schema_version") != "1.2":
-        report.error("version-manifest.json: schema_version must be '1.2'")
-    if data.get("skill_version") != "1.2.0":
-        report.error("version-manifest.json: skill_version must be '1.2.0'")
+    if data.get("schema_version") != "1.3":
+        report.error("version-manifest.json: schema_version must be '1.3'")
+    if data.get("skill_version") != "1.3.0":
+        report.error("version-manifest.json: skill_version must be '1.3.0'")
     if data.get("workflow_stage") != stage:
         report.error(
             f"version-manifest.json: workflow_stage {data.get('workflow_stage')!r} does not match requested stage {stage!r}"
@@ -952,6 +988,10 @@ def main() -> int:
         "feature-selection.json",
         "interview-state.json",
         "accounting-policy-register.json",
+        "allocation-policy-register.json",
+        "management-report-definition.json",
+        "management-dashboard-config.json",
+        "management-report.json",
         "version-manifest.json",
     ]:
         path = pack_dir / name
@@ -961,6 +1001,8 @@ def main() -> int:
     policy_data = json_data.get("accounting-policy-register.json")
     if policy_data is not None:
         validate_policy_register(policy_data, report)
+
+    allocation_policy_data = json_data.get("allocation-policy-register.json")
 
     state = json_data.get("interview-state.json")
     if state is not None:
@@ -1029,6 +1071,21 @@ def main() -> int:
             report.error(f"{args.stage} stage requires at least one accounting policy")
 
     validate_operational_controls(pack_dir, args.stage, state, csv_rows, report)
+
+    validate_management_reporting(
+        pack_dir=pack_dir,
+        stage=args.stage,
+        profile=profile,
+        feature_selection=feature_selection,
+        policy_data=policy_data,
+        allocation_policy_data=allocation_policy_data,
+        manifest=manifest,
+        definition=json_data.get("management-report-definition.json"),
+        config=json_data.get("management-dashboard-config.json"),
+        management_report=json_data.get("management-report.json"),
+        csv_rows=csv_rows,
+        report=report,
+    )
 
     print(f"Company Accounting Pack validation: {pack_dir}")
     print(f"Stage: {args.stage}")

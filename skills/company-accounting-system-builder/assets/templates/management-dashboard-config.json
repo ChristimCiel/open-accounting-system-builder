@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "config_version": 1,
+  "status": "DRAFT",
+  "reporting_cadence": "MONTHLY",
+  "primary_basis": "ACCRUAL",
+  "display_language": "zh-TW",
+  "display_currency": "",
+  "comparisons": [],
+  "dimension_types": [],
+  "modules": [
+    {"module_id": "O6-DASH", "status": "PROPOSED", "recommendation": "AI_RECOMMENDED", "rationale": "老闆首頁：本月賺賠、可用現金與優先待辦。"},
+    {"module_id": "O6-PROFIT", "status": "PROPOSED", "recommendation": "AI_RECOMMENDED", "rationale": "用每 100 元收入最後留下多少說明損益。"},
+    {"module_id": "O6-COST", "status": "PROPOSED", "recommendation": "AI_RECOMMENDED", "rationale": "看到直接成本、營運費用與前五大成本。"},
+    {"module_id": "O6-TRUST", "status": "PROPOSED", "recommendation": "AI_RECOMMENDED", "rationale": "顯示對帳、暫估、缺憑證、未分類與專業覆核狀態。"},
+    {"module_id": "O6-CLOSE", "status": "PROPOSED", "recommendation": "AI_RECOMMENDED", "rationale": "顯示月結進度與阻擋事項。"},
+    {"module_id": "O6-CASH", "status": "PROPOSED", "recommendation": "OPTIONAL", "rationale": "依帳載分類重算截至日可動用與受限現金。"},
+    {"module_id": "O6-MONEY", "status": "PROPOSED", "recommendation": "OPTIONAL", "rationale": "客戶欠款、平台未撥與公司待付。"},
+    {"module_id": "O6-DIMENSION", "status": "PROPOSED", "recommendation": "OPTIONAL", "rationale": "產品、專案、門市或通路獲利。"},
+    {"module_id": "O6-TREND", "status": "PROPOSED", "recommendation": "OPTIONAL", "rationale": "收入、毛利、營業利益與淨利趨勢。"},
+    {"module_id": "O6-BUDGET", "status": "PROPOSED", "recommendation": "OPTIONAL", "rationale": "有正式預算時顯示實際與預算差異。"},
+    {"module_id": "O6-TAX-RESERVE", "status": "PROPOSED", "recommendation": "OPTIONAL", "rationale": "稅款預留追蹤；不等於應納稅額。"},
+    {"module_id": "O6-SCENARIO", "status": "PROPOSED", "recommendation": "OPTIONAL", "rationale": "收款延遲、成本變動與其他情境試算。"}
+  ],
+  "owner_questions": [],
+  "selection_confirmation": {
+    "status": "NOT_CONFIRMED",
+    "confirmed_by": "",
+    "confirmed_at": "",
+    "source_locator": ""
+  },
+  "updated_at": ""
+}

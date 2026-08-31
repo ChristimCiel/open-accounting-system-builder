@@ -1,1 +1,1 @@
-entry_id,line_no,entry_date,period,economic_event_id,account_code,debit,credit,currency,functional_amount,dimension_project,dimension_product,dimension_channel,counterparty_id,document_id,policy_id,posting_status,prepared_by,approved_by,notes
+entry_id,line_no,entry_date,period,economic_event_id,account_code,debit,credit,currency,functional_debit,functional_credit,functional_amount,fx_rate,fx_source_ref,dimension_project,dimension_product,dimension_channel,dimension_location,counterparty_id,document_id,policy_id,posting_status,prepared_by,approved_by,notes

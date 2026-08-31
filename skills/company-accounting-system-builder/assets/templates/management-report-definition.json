@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "definition_id": "OWNER-PNL-BASE",
+  "definition_version": "1.0",
+  "report_type": "ACCRUAL_AND_MANAGEMENT_PNL_DRAFT",
+  "allowed_basis": ["ACCRUAL"],
+  "sign_convention": "income_and_expense_lines_positive; subtotal formulas subtract expenses",
+  "lines": [
+    {"line_id": "GROSS_REVENUE", "formal_label": "Operating revenue", "plain_label": "已完成生意的收入", "operation": "ACCOUNT_SUM", "source_categories": ["REVENUE"], "display_order": 10},
+    {"line_id": "REVENUE_DEDUCTIONS", "formal_label": "Revenue deductions", "plain_label": "退款、折讓與其他收入減項", "operation": "ACCOUNT_SUM", "source_categories": ["REVENUE_DEDUCTION"], "display_order": 20},
+    {"line_id": "NET_REVENUE", "formal_label": "Net operating revenue", "plain_label": "淨營業收入", "operation": "SUBTRACT_LINES", "operands": ["GROSS_REVENUE", "REVENUE_DEDUCTIONS"], "display_order": 30},
+    {"line_id": "COST_OF_SALES", "formal_label": "Operating costs", "plain_label": "歸屬本期收入的營業成本", "operation": "ACCOUNT_SUM", "source_categories": ["COST_OF_SALES"], "display_order": 40},
+    {"line_id": "GROSS_PROFIT", "formal_label": "Gross profit or loss", "plain_label": "賣出後先留下的錢", "operation": "SUBTRACT_LINES", "operands": ["NET_REVENUE", "COST_OF_SALES"], "display_order": 50},
+    {"line_id": "OPERATING_EXPENSE", "formal_label": "Operating expenses", "plain_label": "維持公司運作花的錢", "operation": "ACCOUNT_SUM", "source_categories": ["OPERATING_EXPENSE"], "display_order": 60},
+    {"line_id": "OPERATING_PROFIT", "formal_label": "Operating profit or loss", "plain_label": "本業經營賺或賠", "operation": "SUBTRACT_LINES", "operands": ["GROSS_PROFIT", "OPERATING_EXPENSE"], "display_order": 70},
+    {"line_id": "OTHER_INCOME", "formal_label": "Non-operating income", "plain_label": "營業以外的收入", "operation": "ACCOUNT_SUM", "source_categories": ["OTHER_INCOME"], "display_order": 80},
+    {"line_id": "OTHER_EXPENSE", "formal_label": "Non-operating expenses", "plain_label": "營業以外的支出", "operation": "ACCOUNT_SUM", "source_categories": ["OTHER_EXPENSE"], "display_order": 90},
+    {"line_id": "PRETAX_PROFIT", "formal_label": "Profit or loss before income tax", "plain_label": "稅前賺或賠", "operation": "ADD_SUBTRACT_LINES", "add": ["OPERATING_PROFIT", "OTHER_INCOME"], "subtract": ["OTHER_EXPENSE"], "display_order": 100},
+    {"line_id": "INCOME_TAX", "formal_label": "Income tax expense or benefit", "plain_label": "所得稅費用或利益", "operation": "ACCOUNT_SUM", "source_categories": ["INCOME_TAX"], "display_order": 110},
+    {"line_id": "CONTINUING_PROFIT", "formal_label": "Profit or loss from continuing operations", "plain_label": "繼續營業的最後賺賠", "operation": "SUBTRACT_LINES", "operands": ["PRETAX_PROFIT", "INCOME_TAX"], "display_order": 120},
+    {"line_id": "DISCONTINUED_OPERATIONS", "formal_label": "Profit or loss from discontinued operations", "plain_label": "已停止業務的損益", "operation": "ACCOUNT_SUM_SIGNED", "source_categories": ["DISCONTINUED_OPERATIONS"], "display_order": 130},
+    {"line_id": "NET_PROFIT", "formal_label": "Net profit or loss", "plain_label": "本期最後賺或賠", "operation": "SUM_LINES", "operands": ["CONTINUING_PROFIT", "DISCONTINUED_OPERATIONS"], "display_order": 140}
+  ],
+  "charts": [
+    {"chart_id": "PNL_WATERFALL", "chart_type": "WATERFALL", "source": "report_lines", "line_ids": ["NET_REVENUE", "COST_OF_SALES", "OPERATING_EXPENSE", "OTHER_INCOME", "OTHER_EXPENSE", "INCOME_TAX", "NET_PROFIT"]},
+    {"chart_id": "COST_BARS", "chart_type": "HORIZONTAL_BAR", "source": "cost_breakdown", "sort": "amount_desc", "limit": 6},
+    {"chart_id": "PNL_TREND", "chart_type": "LINE", "source": "report_lines", "line_ids": ["NET_REVENUE", "GROSS_PROFIT", "OPERATING_PROFIT", "NET_PROFIT"]}
+  ]
+}

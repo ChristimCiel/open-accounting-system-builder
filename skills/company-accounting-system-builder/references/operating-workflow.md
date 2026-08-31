@@ -33,14 +33,16 @@
 4. 檢查預收/履約、預付、跨期、應計、暫估、外幣、存貨、固定資產、薪資與稅務 open items，僅依已確認政策處理。
 5. 驗證每筆分錄與總借貸平衡，科目明細可調節到總帳。
 6. 更新 open items、專業覆核包、期限與負責人。
-7. 生成現金與權責分開的管理報表，解釋重大變動與假設。
-8. 記錄版本、補帳/調整、未決與是否可關帳。
+7. 若 O6 啟用，依 `management-report-definition.json` 從本期 `POSTED` journal 重算標準結構的權責損益草案；以 checksum、行數與調節差異證明報表來自本次 ledger snapshot。
+8. 將已核准的管理重分類、成本分攤與管理調整逐項 bridge 到管理損益，再依 `management-dashboard-config.json` 產生老闆儀表板。現金視圖另算，不與權責淨利混合。
+9. 在首屏顯示本期收入、每 100 元收入留下多少、毛利、營業利益、淨利、主要成本、可用現金、三至五項優先待辦與具體資料狀態；負毛利不得轉正或隱藏。
+10. 記錄報表 definition/revision、ledger checksum、政策版本、補帳/調整、未決與是否可關帳；跑 `validate_company_pack.py --stage close` 後才可標示機械性關卡完成。
 
 ## 關帳狀態
 
 - `OPEN`：可新增/修改。
 - `CONTROL_CHECKED`：內部控制檢查完成，仍可有已揭露未決。
-- `OWNER_APPROVED`：老闆確認管理報告，不代表專業合規。
+- `OWNER_APPROVED_MANAGEMENT`：老闆確認管理報告，不代表專業合規。
 - `PROFESSIONALLY_REVIEWED`：僅能依具權限專業人士的明確書面結論標示範圍與日期。
 - `LOCKED`：修改需透過有理由、追溯關聯與核准的調整分錄/新版。
 

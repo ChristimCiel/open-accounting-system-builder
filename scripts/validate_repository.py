@@ -34,13 +34,26 @@ REQUIRED_SKILL_PATHS = {
     "agents/openai.yaml",
     "scripts/init_company_pack.py",
     "scripts/validate_company_pack.py",
+    "scripts/validate_management_reporting.py",
+    "scripts/render_management_dashboard.py",
+    "scripts/test_management_reporting.py",
     "references/onboarding-interview.md",
     "references/feature-customization.md",
     "references/standards-research.md",
     "references/deliverable-contract.md",
+    "references/management-reporting.md",
     "assets/templates/interview-state.json",
     "assets/templates/feature-selection.json",
     "assets/templates/version-manifest.json",
+    "assets/templates/management-report-definition.json",
+    "assets/templates/management-dashboard-config.json",
+    "assets/templates/management-report.json",
+    "assets/templates/management-dashboard.md",
+    "assets/templates/dimensions.csv",
+    "assets/templates/management-attribution.csv",
+    "assets/templates/management-adjustments.csv",
+    "assets/templates/budgets.csv",
+    "assets/templates/allocation-policy-register.json",
 }
 FORBIDDEN_SUFFIXES = {".xlsx", ".xls", ".pdf", ".pem", ".key", ".p12", ".zip"}
 
@@ -77,7 +90,7 @@ def main() -> int:
             header = frontmatter.group(1)
             for expected in (
                 "name: company-accounting-system-builder",
-                'version: "1.2.0"',
+                'version: "1.3.0"',
                 'author: "Tim Chen"',
                 'license: "Apache-2.0"',
             ):
@@ -119,6 +132,14 @@ def main() -> int:
 
     init_script = SKILL / "scripts" / "init_company_pack.py"
     validate_script = SKILL / "scripts" / "validate_company_pack.py"
+    management_test_script = SKILL / "scripts" / "test_management_reporting.py"
+    if management_test_script.is_file():
+        management_tests = run([sys.executable, str(management_test_script)])
+        if management_tests.returncode != 0:
+            errors.append(
+                "management reporting tests failed: "
+                + (management_tests.stdout + management_tests.stderr).strip()
+            )
     if init_script.is_file() and validate_script.is_file():
         with tempfile.TemporaryDirectory(prefix="open-accounting-system-builder-") as temp:
             temp_root = Path(temp)

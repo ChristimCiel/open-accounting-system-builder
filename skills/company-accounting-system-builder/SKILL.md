@@ -1,8 +1,8 @@
 ---
 name: company-accounting-system-builder
-description: Interview company owners to understand their industry and business model, research the applicable current accounting framework, diagnose existing records, and build or review a traceable and reconcilable internal accounting system. 適用於新公司建帳、舊帳遷移、內帳制度設計、日常交易控管與月結。
+description: Interview company owners to understand their industry and business model, research the applicable current accounting framework, diagnose existing records, and build or review a traceable accounting system with a structured accrual P&L draft and owner-friendly management reporting. 適用於新公司建帳、舊帳遷移、內帳制度、成本與獲利分析、日常交易控管與月結。
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   author: "Tim Chen"
   license: "Apache-2.0"
 ---
@@ -48,15 +48,20 @@ An open-source Company Accounting System Builder maintained by Tim Chen.
 4. 涉及現行法令、準則、稅務、申報或期限時，必須讀 [references/standards-research.md](references/standards-research.md) 並即時查核官方來源。司法管轄地為台灣時，再讀 [references/jurisdictions/taiwan.md](references/jurisdictions/taiwan.md)。
 5. 讀 [references/system-selection.md](references/system-selection.md)，建議電子表格、會計軟體或混合流程。必須指定單一正式帳務來源，不能讓兩套帳同時成為 master。
 6. 讀 [references/baseline-controls.md](references/baseline-controls.md) 與 [references/transaction-playbooks.md](references/transaction-playbooks.md)，建立公司專屬政策、科目、證據規則、交易流與月結。
-7. 依 [references/deliverable-contract.md](references/deliverable-contract.md) 生成 Company Accounting Pack。使用 `assets/` 內的空白模板，不把示範公司的名稱、統編、人名、金額、帳號、卡號、客戶、單據號或實際交易寫進 Skill。使用者明確確認輸出位置與資料範圍後，可執行 `python scripts/init_company_pack.py <輸出資料夾> --authorization-reference <對話或指令中的授權位置>` 建立空白公司包；腳本不會覆蓋已存在的檔案。
-8. 用代表性交易試跑，至少覆蓋收入、未收款或預收、一筆支出、一個支付/金流通路、一筆模糊或矛盾資料。
-9. 對現有帳本先讀 [references/migration-controls.md](references/migration-controls.md)，只先產生欄位映射、差異、公式/控制風險與遷移預覽。未獲確認前不覆蓋原始檔。
+7. 若 O6 或管理報表自訂功能啟用，讀 [references/management-reporting.md](references/management-reporting.md)。先讓老闆多選儀表板子功能、比較口徑與管理維度；AI 預選不得當成老闆已確認。
+8. 依 [references/deliverable-contract.md](references/deliverable-contract.md) 生成 Company Accounting Pack。使用 `assets/` 內的空白模板，不把示範公司的名稱、統編、人名、金額、帳號、卡號、客戶、單據號或實際交易寫進 Skill。使用者明確確認輸出位置與資料範圍後，可執行 `python scripts/init_company_pack.py <輸出資料夾> --authorization-reference <對話或指令中的授權位置>` 建立空白公司包；腳本不會覆蓋已存在的檔案。
+9. 用代表性交易試跑，至少覆蓋收入、未收款或預收、一筆支出、一個支付/金流通路、一筆模糊或矛盾資料；啟用 O6 時另驗證損益重算、負毛利、成本調節與報表 lineage。
+10. 對現有帳本先讀 [references/migration-controls.md](references/migration-controls.md)，只先產生欄位映射、差異、公式/控制風險與遷移預覽。未獲確認前不覆蓋原始檔。
 
 ## Operate 與 review 工作流
 
 讀 [references/operating-workflow.md](references/operating-workflow.md)，完成「來源收件 → 公司用途/完整性 → 查重 → 暫定分類 → 人工確認 → 分錄 → 對帳 → 待補/例外 → 月結 → 報表 → 專業覆核」。
 
 開始前先讀 `feature-selection.json`。只執行已啟用的選配模組；但不得因某模組未啟用而略過真實交易、證據、對帳或法定/專業風險的記錄。
+
+若 O6 或管理報表自訂功能啟用，同時讀 `management-dashboard-config.json` 與 [references/management-reporting.md](references/management-reporting.md)。所有損益、成本、維度與首屏數字必須由同一份 `POSTED` journal 重算；管理重分類、分攤或非 GAAP 調整只能留在有 policy、來源與核准的 bridge，不得回寫成第二套交易帳。
+
+產生 `management-report.json` 後，執行 `python scripts/render_management_dashboard.py <公司包>/management-report.json <公司包>/management-dashboard-config.json <公司包>/management-dashboard.md --overwrite` 固定生成老闆版 Markdown；先顯示將覆寫的已授權公司包路徑與變更摘要。不得手動另填 dashboard 數字。若啟用的 O6 子功能尚無 v1.3 驗證契約，保留為需求草案，不宣稱 close 已完成。
 
 每次處理要：
 
@@ -67,6 +72,8 @@ An open-source Company Accounting System Builder maintained by Tim Chen.
 - 正式交易使用複式分錄；每筆分錄借貸必須平衡。非交易事件留在備忘/待辦，不產生金額分錄。
 - 信用卡消費與信用卡帳單繳款不得重複認列費用。
 - 維持 open-items register，不讓待補憑證、應收、應付、暫估與待專業覆核事項消失在備註中。
+- 權責損益、現金收支、稅務、預算與管理調整分開標示；不得把發票、收款、平台撥款或銀行餘額直接命名為營收、淨利或可用現金。
+- 老闆首屏先回答本期賺賠、每 100 元收入留下多少、主要成本、可用現金與最重要待辦；同時顯示期間、幣別、對帳、暫估、缺憑證、未分類與專業覆核狀態。
 
 ## 結論狀態與專業邊界
 
@@ -96,6 +103,7 @@ An open-source Company Accounting System Builder maintained by Tim Chen.
 - 待補憑證、應收、應付、暫估、衝突、期限與專業覆核均有負責人與下一步。
 - 系統建議說明為什麼適合目前公司，以及何種情況出現時應升級。
 - `feature-selection.json` 保留 AI 推薦、使用者多選結果、自訂功能、停用狀態與變更記錄；正式作業前功能組合已由負責人確認。
+- 啟用管理報表時，`management-report.json` 可由 journal checksum 重算並調節至帳載淨利；`management-dashboard.md` 不含獨立手填數字。環境支援試算表時可另建 `management-dashboard.xlsx`，否則交付 Markdown/JSON 並明示不是互動圖表。
 - 經過代表性交易試跑與驗收。
 - 交付前依階段執行 `python scripts/validate_company_pack.py <公司包資料夾> --stage onboarding|draft|posting|close`。只有 `posting` 或 `close` 階段通過才表示對應的機械性關卡完成；任何階段通過都不代表會計、稅務或法律正確。
 - 新建或重大更新 Skill 時，用 [references/acceptance-scenarios.md](references/acceptance-scenarios.md) 做獨立前向測試，不把預期答案先喂給測試者。
