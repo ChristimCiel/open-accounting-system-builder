@@ -65,14 +65,14 @@ accounting-system/
 ### 標準結構權責損益草案與老闆儀表板
 
 - `management-report-definition.json` 只可使用白名單操作，不接受任意公式字串、程式或硬編金額。
-- `management-dashboard-config.json` 保存 AI 推薦、老闆多選確認、決策問題、比較口徑與維度；推薦不可自動寫成已確認。
+- `management-dashboard-config.json` 保存 AI 推薦、老闆多選確認、決策問題、比較口徑、維度與圖表多選；推薦不可自動寫成已確認。
 - `management-report.json` 保存期間、口徑、幣別、ledger checksum/行數、財務金額、管理調整、成本、維度、缺口、警示、調節與圖表參照。
 - `management-dashboard.md` 必須以 `render_management_dashboard.py` 從 report 固定生成並逐字通過驗證，不得手工維護第二套數字；正式會計名與白話標籤並列。
 - `allocation-policy-register.json` 保存成本池、目標維度、driver、driver 來源、分母、零分母、四捨五入、殘差、頻率、有效日、版本與核准；只有文字 policy ID 不足以通過分攤驗證。
 - 啟用 O6 且到 `close` 時，財務損益必須調節到 journal 重算結果，成本明細回到營業成本＋營業費用，負毛利保留並警示。
 - 權責、現金、稅務、預算、預測與管理調整分開；無預算時預算及差異為 null，不得當零。
 - 圖表只引用已驗證 line/cost/dimension ID，不嵌入另一套數字陣列。
-- 若執行環境可建立試算表，可另交付 `management-dashboard.xlsx`；其公式與圖表必須引用可見資料與 lineage，且完成公式錯誤與視覺驗收。無該能力時以 Markdown/JSON 降級，不宣稱有互動圖表。
+- 若執行環境可建立試算表，可另交付 `management-dashboard.xlsx`；至少有 `Dashboard`、`P&L`、`Cost Analysis`、`Dimension Profit`、`Chart Data`、`Data & Lineage` 與 `Checks`。公式與圖表必須引用可見資料與 lineage，匯出後以 verifier 重新匯入確認原生圖表數、公式錯誤並完成視覺驗收。無該能力時以 Markdown/JSON 降級，不宣稱有互動圖表。
 
 ### `professional-review-pack.md`
 
@@ -91,6 +91,7 @@ accounting-system/
 5. 代表性交易試跑中，重複不入帳、衝突不猜、信用卡繳款不重複列費用、平台淨撥款可調節至總銷售/手續費。
 6. 借貸平衡、必填欄位、重複鍵、憑證連結、open items、對帳差異與版本檢查有結果。
 7. 啟用 O6 時，損益由 journal 重算、管理 bridge 可追溯、圖表無硬編數字、負毛利與缺資料不被隱藏。
+8. 啟用甜甜圈時，成本為完整、非負、總額大於零且至少兩類；不符合時使用長條或不產生。
 
 使用 `scripts/validate_company_pack.py <公司包> --stage onboarding|draft|posting|close` 檢查結構、功能 revision、訪談狀態、gate、manifest、JSON、CSV 必填、重複鍵與借貸平衡。空白 scaffold 只可在 `onboarding` 階段通過並必須顯示尚不可入帳。`posting` 與 `close` 的固定控制不受功能開關影響：必須有當期官方來源、已確認功能 revision、完整證據與來源連結、已清除的查重/用途/完整性狀態、人工審批、交易與分錄串聯，且不能有尚未解決的專業判斷；`close` 再加對帳結果、無未勾選月結控制、關帳決定與無阻擋項目。驗證通過只代表該階段的機械性控制通過，不代表會計/稅務正確。
 
@@ -103,3 +104,7 @@ accounting-system/
 ## 從 Skill 1.2 升級
 
 保留原 Company Pack，新建九個管理報表 scaffold，補齊 COA 損益／成本欄位及 journal 功能幣別／維度欄位，並把 manifest schema 升為 `1.3`。若 O6 原本已啟用，只能把 dashboard 子功能建成 AI 預選草案；需由老闆確認後才把 config 改為 `OWNER_CONFIRMED`。舊報表不得直接標示已調節，必須從 `POSTED` journal 重跑 checksum、損益與成本驗證。
+
+## 從 Skill 1.3 升級
+
+保留原 Company Pack，把 manifest schema 升為 `1.4`，新增 workbook 狀態、checksum 與 chart ID 欄位，並把 `visualizations[]` 以 AI 預選草案加入 dashboard config。不得根據舊的 chart ID 自動當成老闆已選；先詢問 `Q-VISUAL` 並取得確認。報表補上 workbook renderer checksum 後重跑 close validator，再產生與驗證 XLSX。

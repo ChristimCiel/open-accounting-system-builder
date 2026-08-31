@@ -4,15 +4,18 @@
 
 ## 先問老闆要做什麼決策
 
-當 O6 或管理報表自訂功能啟用時，只問 3 個會改變報表的問題：
+當 O6 或管理報表自訂功能啟用時，只問 4 個會改變報表的問題：
 
 1. 每月看完後要做什麼決策：控成本、招人、定價、追欠款、開新店、縮減產品，還是掌握現金？
 2. 最想拆哪個維度：產品、專案、門市、通路、客群、部門或不需要？
 3. 要比較上月、去年同期、正式預算或預測？沒有可追溯預算時，不得預設為零。
+4. 想看哪些圖：帳載 vs. 管理口徑柱狀、損益正負影響柱狀、成本長條、成本甜甜圈、維度獲利柱狀，還是不需要圖？
 
 以 `management-dashboard-config.json` 顯示 O6 子功能多選。預設推薦 `O6-DASH`、`O6-PROFIT`、`O6-COST`、`O6-TRUST` 與 `O6-CLOSE`；只在已知資料觸發時推薦現金預測、待收待付、維度獲利、趨勢、預算、稅款預留或情境。AI 推薦不等於老闆已選。
 
-將三個問題逐題保存為 `owner_questions[]`，每題至少有 `question_id`、`question`、`answer`、`source_locator` 與 `status: ANSWERED`。O6 關帳驗證不得只憑預設值跳過老闆回答。
+圖表以 `visualizations[]` 另開多選。AI 預設推薦損益比較柱狀、損益正負影響柱狀與成本長條；甜甜圈及維度圖為選配。推薦只能是 `PROPOSED`，老闆確認後才變成 `ENABLED`。
+
+將四個問題逐題保存為 `owner_questions[]`，ID 固定為 `Q-DECISION / Q-DIMENSION / Q-COMPARISON / Q-VISUAL`，每題至少有 `question_id`、`question`、`answer`、`source_locator` 與 `status: ANSWERED`。O6 關帳驗證不得只憑預設值跳過老闆回答。
 
 ## 單一資料流
 
@@ -72,7 +75,7 @@ POSTED journal
 - 每筆管理調整的 `period_start/period_end` 必須與報表完全一致，並指向原始 P&L `account_code`；成本明細的管理調整逐科目調節到這些核准列，不能只讓總數碰巧相等。
 - 影響收入、營業成本／費用界線、存貨、折舊、稅務、股東、關係人、跨境或法定財報的政策必須列專業覆核。
 
-v1.3 會驗證每個核准比例介於 0–1、逐列金額等於來源金額乘比例、同一來源合計 100%，並核對 policy 的成本池、目標維度、有效期間與版本；它尚不會從 driver 原始數量重新計算比例。若需要驗證工時、面積或訂單量的原始 driver，必須新增 driver ledger 與對應 validator，否則只能說「核准比例的數學與適用性已檢查」。
+v1.4 會驗證每個核准比例介於 0–1、逐列金額等於來源金額乘比例、同一來源合計 100%，並核對 policy 的成本池、目標維度、有效期間與版本；它尚不會從 driver 原始數量重新計算比例。若需要驗證工時、面積或訂單量的原始 driver，必須新增 driver ledger 與對應 validator，否則只能說「核准比例的數學與適用性已檢查」。
 
 ## 老闆首屏
 
@@ -87,12 +90,12 @@ v1.3 會驗證每個核准比例介於 0–1、逐列金額等於來源金額乘
 
 1. 報表期間、截至日、口徑、幣別、狀態與對帳進度。
 2. 本期收入、毛利／率、營業利益、淨利、可用現金。
-3. 「每 100 元收入最後留下多少」損益瀑布。
+3. 「帳載權責 vs. 管理口徑」損益柱狀與收入、成本、費用、淨利的正負影響柱狀。
 4. 前五大成本水平長條，分開直接成本與營運費用。
 5. 最重要的 3–5 個待辦，依阻擋月結、逾期、現金風險、金額與缺漏排序。
 6. 首屏以下才放現金安全線、待收待付、維度獲利、趨勢與完整明細。
 
-損益主視覺使用瀑布圖；成本使用由大到小的水平長條；趨勢使用折線；實際與目標使用差異或 bullet-style 視覺。不使用 3D 圖、過多圖例或難以比較成本變化的裝飾性圓餅圖。
+損益主視覺使用可穩定匯出的柱狀圖；成本使用由大到小的水平長條；趨勢使用折線；實際與目標使用差異或 bullet-style 視覺。成本甜甜圈只用於「所有分類非負、總額大於零、至少兩類、完整覆蓋全部成本」的占比；其他情況改用長條，不取絕對值伪造圓餅。不使用 3D 圖、過多圖例或裝飾性圖表。
 
 ## 白話與正式名稱並列
 
@@ -139,17 +142,17 @@ v1.3 會驗證每個核准比例介於 0–1、逐列金額等於來源金額乘
 
 `cash_summary` 是與權責損益分開的物件。未啟用現金模組時使用 `status: NOT_ENABLED` 與 null 金額；啟用時從 COA 的現金分類與截至日以前的 `POSTED` journal 重算 `available_cash` 與 `restricted_cash`，口徑固定為 `LEDGER_BALANCE_AS_OF`。這是依已確認帳載分類的可動用現金，不等於扣除未來應付與預留後的自由現金。`trust_summary[]` 至少覆蓋憑證缺口、未決事項、未過帳交易、未分類成本及報表調節，並從來源重算筆數，不產生 AI 信心分數；`action_items[]` 保存優先順序、行動、原因、負責人、期限、來源與狀態，所有未結 open item 都要用 `open_item_id` 出現在 action item。
 
-報表的 `source_checksums` 同時固定 company profile、COA、會計政策、損益定義、儀表板設定、維度、分攤、管理調整、分攤政策、預算、憑證索引、未決事項與 renderer 版本。任一來源改變，都必須重新產生報表與新版儀表板。`management-dashboard.md` 使用 `render_management_dashboard.py` 固定生成；validator 逐字比對，所以手改首屏數字會失敗。
+報表的 `source_checksums` 同時固定 company profile、COA、會計政策、損益定義、儀表板設定、維度、分攤、管理調整、分攤政策、預算、憑證索引、未決事項、Markdown renderer 與 workbook renderer 版本。任一來源改變，都必須重新產生報表與新版儀表板。`management-dashboard.md` 使用 `render_management_dashboard.py` 固定生成；validator 逐字比對，所以手改首屏數字會失敗。
 
 只有報表狀態為 `PROFESSIONALLY_REVIEWED` 且 `professional_review` 同時具備 reviewer ID、資格／角色、結構化 scope、書面結論位置與覆核時間，才可顯示專業覆核；老闆核准管理報表只能使用 `OWNER_APPROVED_MANAGEMENT`。scope 必須精確綁定 `report_id`、`revision`、`period_start`、`period_end`、`ledger_sha256` 與 `covered_areas`。全域 `PROFESSIONALLY_REVIEWED` 要求 `covered_areas` 完整覆蓋帳載權責損益草案、管理調整、成本明細、信任與待辦，以及所有已啟用的現金、維度與預算區域；只覆核局部時不得使用全域狀態。儀表板首頁必須顯示 reviewer、`reviewed_at` 與 `covered_areas`。
 
-v1.3 可在 close 驗證 DASH、PROFIT、COST、TRUST、CLOSE、CASH、DIMENSION 與 BUDGET。`O6-MONEY`、`O6-TREND`、`O6-TAX-RESERVE`、`O6-SCENARIO` 可留在需求草案，但在對應機器可讀輸出與驗證規則擴充前不得標為 ENABLED 並通過 close。
+v1.4 可在 close 驗證 DASH、PROFIT、COST、TRUST、CLOSE、CASH、DIMENSION 與 BUDGET，並對已啟用圖表要求完整 ID lineage。`O6-MONEY`、`O6-TREND`、`O6-TAX-RESERVE`、`O6-SCENARIO` 可留在需求草案，但在對應機器可讀輸出與驗證規則擴充前不得標為 ENABLED 並通過 close。
 
-v1.3 的報表幣別必須等於功能幣別；它會驗證交易外幣到功能幣別的換算，但尚未實作把整份損益再換成另一個報導幣別。需要不同報導幣別、合併或換算差額時，保留為草案並擴充資料契約，不可直接替換 currency 標籤。
+v1.4 的報表幣別必須等於功能幣別；它會驗證交易外幣到功能幣別的換算，但尚未實作把整份損益再換成另一個報導幣別。需要不同報導幣別、合併或換算差額時，保留為草案並擴充資料契約，不可直接替換 currency 標籤。
 
-專業覆核的機械檢查只接受 company profile 中已確認、具驗證來源與有效日期的 active advisor；reviewer 必須與 preparer 分離、同時是報表 approver。結論文件必須位於 company pack 內，validator 會讀取實際 bytes 重算 SHA-256，並要求結論日期不早於報表期末、不晚於 `reviewed_at`，`reviewed_at` 也不得早於期末或晚於 `generated_at`。v1.3 不會根據無法取得 bytes 的外部連結自動宣告專業覆核。這仍不能替代人工確認資格真實性與結論內容。
+專業覆核的機械檢查只接受 company profile 中已確認、具驗證來源與有效日期的 active advisor；reviewer 必須與 preparer 分離、同時是報表 approver。結論文件必須位於 company pack 內，validator 會讀取實際 bytes 重算 SHA-256，並要求結論日期不早於報表期末、不晚於 `reviewed_at`，`reviewed_at` 也不得早於期末或晚於 `generated_at`。v1.4 不會根據無法取得 bytes 的外部連結自動宣告專業覆核。這仍不能替代人工確認資格真實性與結論內容。
 
-若環境可建立電子表格，另產生 `management-dashboard.xlsx`，至少含 `Dashboard`、`P&L`、`Cost Analysis`、`Dimension Profit`、`Data & Lineage` 與 `Checks` 工作表。所有派生數值用可審閱公式，圖表只引用可見資料區，不嵌入硬編數字。建立後要掃描公式錯誤、檢視關鍵範圍並視覺驗收。
+若環境可建立電子表格，另產生 `management-dashboard.xlsx`，至少含 `Dashboard`、`P&L`、`Cost Analysis`、`Dimension Profit`、`Chart Data`、`Data & Lineage` 與 `Checks` 工作表。所有派生數值用可審閱公式，圖表只引用可見資料區，不嵌入硬編數字。用 `render_management_workbook.mjs` 建立後，必須用 `verify_management_workbook.mjs` 重新匯入 XLSX，確認工作表、原生圖表數與公式錯誤，再渲染 Dashboard 視覺驗收。完成後才把 workbook SHA-256、圖表 ID 與 `VERIFIED` 寫入 manifest。
 
 若無電子表格或 BI 能力，使用 `management-dashboard.md` 與機器可讀檔案；不宣稱已產生互動圖表。
 
@@ -164,7 +167,7 @@ v1.3 的報表幣別必須等於功能幣別；它會驗證交易外幣到功能
 7. 每個啟用維度中，所有相關 journal line attribution 總比例為 100%；各維度加 `UNASSIGNED/UNALLOCATED` 必須回到公司總額。
 8. 分攤引用已確認 policy；政策或 driver 缺漏不猜。
 9. 沒有預算時，`budget_amount`、差異與預算圖表保留 null/不產生；不寫零。
-10. 圖表只引用已存在的 line / cost / dimension ID；不允許 `values` 或 `data` 內嵌金額陣列。
+10. 圖表只引用已存在的 line / cost / dimension ID；不允許 `values` 或 `data` 內嵌金額陣列。圓餅／甜甜圈不接受負數、零總額、單一類或不完整的 whole。
 11. 缺維度、科目分類、匯率、憑證或重大未對帳時進 `missing_data` 與 open items，不當零或排除。
 12. 關帳期間重跑後 checksum、policy 或報表版本改變時產生新版，不靜默覆蓋。
 

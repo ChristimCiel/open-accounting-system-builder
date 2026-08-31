@@ -22,8 +22,12 @@
     {"line_id": "NET_PROFIT", "formal_label": "Net profit or loss", "plain_label": "本期最後賺或賠", "operation": "SUM_LINES", "operands": ["CONTINUING_PROFIT", "DISCONTINUED_OPERATIONS"], "display_order": 140}
   ],
   "charts": [
+    {"chart_id": "PNL_COLUMNS", "chart_type": "COLUMN", "source": "report_lines", "line_ids": ["NET_REVENUE", "GROSS_PROFIT", "OPERATING_PROFIT", "NET_PROFIT"]},
+    {"chart_id": "PNL_BRIDGE_COLUMNS", "chart_type": "COLUMN_BRIDGE", "source": "report_lines", "line_ids": ["NET_REVENUE", "COST_OF_SALES", "OPERATING_EXPENSE", "OTHER_INCOME", "OTHER_EXPENSE", "INCOME_TAX", "NET_PROFIT"]},
     {"chart_id": "PNL_WATERFALL", "chart_type": "WATERFALL", "source": "report_lines", "line_ids": ["NET_REVENUE", "COST_OF_SALES", "OPERATING_EXPENSE", "OTHER_INCOME", "OTHER_EXPENSE", "INCOME_TAX", "NET_PROFIT"]},
     {"chart_id": "COST_BARS", "chart_type": "HORIZONTAL_BAR", "source": "cost_breakdown", "sort": "amount_desc", "limit": 6},
+    {"chart_id": "COST_DONUT", "chart_type": "DOUGHNUT", "source": "cost_breakdown", "part_to_whole": true, "group_after": 5},
+    {"chart_id": "DIMENSION_PROFIT_BARS", "chart_type": "COLUMN", "source": "dimension_summary", "measure": "NET_PROFIT"},
     {"chart_id": "PNL_TREND", "chart_type": "LINE", "source": "report_lines", "line_ids": ["NET_REVENUE", "GROSS_PROFIT", "OPERATING_PROFIT", "NET_PROFIT"]}
   ]
 }

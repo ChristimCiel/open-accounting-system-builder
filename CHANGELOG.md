@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-31
+
+### Added
+
+- Owner-confirmed chart multi-select with recommended ledger-vs-management P&L columns, positive/negative P&L bridge columns, cost bars, an optional cost doughnut, and dimension-profit columns.
+- Native Excel workbook renderer with `Dashboard`, `P&L`, `Cost Analysis`, `Dimension Profit`, `Chart Data`, `Data & Lineage`, and `Checks` sheets.
+- Exported-workbook verifier that re-imports XLSX files, counts native chart objects, scans formula errors, inspects key ranges, and renders a visual QA preview.
+- Workbook renderer checksum and manifest fields for workbook status, output checksum, and chart IDs.
+
+### Changed
+
+- Management reporting now requires an answered `Q-VISUAL` owner question before close.
+- Chart sources use visible formulas linked to the validated report snapshot instead of embedded chart values.
+- Company Pack manifest schema is now 1.4 and the Skill version is 1.4.0.
+
+### Security
+
+- Cost pie/doughnut charts are rejected for negative categories, zero totals, fewer than two categories, or an incomplete cost whole.
+- A generated workbook cannot be marked `VERIFIED` until post-export import and visual checks are completed; its SHA-256 must match the manifest.
+
 ## [1.3.0] - 2026-08-31
 
 ### Added

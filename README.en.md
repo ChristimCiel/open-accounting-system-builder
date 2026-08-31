@@ -48,7 +48,7 @@ Use $skill-installer to install the public GitHub Skill from:
 
 Repository: ChristimCiel/open-accounting-system-builder
 Path: skills/company-accounting-system-builder
-Ref: v1.3.0
+Ref: v1.4.0
 
 Inspect SKILL.md and scripts before installation. If a Skill with the same name
 already exists, stop and tell me instead of overwriting it. After installation,
@@ -102,9 +102,9 @@ Before that confirmation, the Skill does not research standards, read sensitive 
 
 High-judgment tax, revenue, shareholder, related-party, cross-border, payroll, inventory, fixed-asset, or similar matters are routed into a professional review pack instead of being presented as final conclusions.
 
-## v1.3 management reporting
+## v1.4 visual management reporting
 
-Version 1.3 separates the accounting source from the reporting presentation. The structured accrual profit-and-loss draft and the owner-facing dashboard must both be generated from the same `POSTED` journal. Management dimensions, allocations, or reclassifications remain traceable management adjustments and must not rewrite the formal journal.
+Version 1.4 separates the accounting source from the reporting presentation. The structured accrual profit-and-loss draft, owner dashboard, and native Excel charts must all be generated from the same `POSTED` journal. Management dimensions, allocations, or reclassifications remain traceable management adjustments and must not rewrite the formal journal.
 
 The owner still multi-selects O1–O8 first. Only after the owner confirms O6 does the Skill expand these separately selectable reporting subfeatures:
 
@@ -115,7 +115,9 @@ The owner still multi-selects O1–O8 first. Only after the owner confirms O6 do
 - `close`: close progress, blockers, owners, and next actions.
 - `custom`: owner-defined store, project, product, or other management views proposed by AI and enabled only after owner confirmation.
 
-When the execution environment can create and verify spreadsheets, the primary deliverable is `management-dashboard.xlsx`. Otherwise, the Skill produces readable Markdown plus machine-readable JSON with the same definitions, sources, data-trust indicators, and open actions.
+The owner separately multi-selects charts: ledger-vs-management P&L columns, positive/negative P&L bridge columns, top-cost bars, a safety-checked cost doughnut, and dimension-profit columns. The doughnut is allowed only when every cost is non-negative, the total is positive, and at least two categories exist.
+
+When the execution environment can create and verify spreadsheets, the primary deliverable is `management-dashboard.xlsx` with `Dashboard`, `P&L`, `Cost Analysis`, `Dimension Profit`, `Chart Data`, `Data & Lineage`, and `Checks`. Charts reference visible formula-backed ranges; after export, the workbook is re-imported to verify native chart objects and formula errors. Without spreadsheet capability, the Skill falls back to Markdown and JSON.
 
 The dashboard must show accrual net income or loss separately from cash movement and available cash; it must never imply that profit means cash has already been collected. These are traceable internal-management outputs. Unless an appropriately qualified professional has provided a written conclusion for a stated scope and date, the Skill must not describe them as statutory financial statements, compliant with an accounting framework, professionally correct or reviewed, or ready for filing.
 

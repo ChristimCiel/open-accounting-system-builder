@@ -44,3 +44,8 @@
 40. **現金與損益分開**：現金摘要使用獨立口徑與來源，不能把現金增減或銀行餘額標成權責淨利。
 41. **帳載與管理口徑不混用**：存在管理調整時，首屏與瀑布並列 `financial_amount`、`management_adjustment` 與 `management_amount`；不得把管理調整後數字只標成權責損益。
 42. **局部覆核不得冒充全域覆核**：`covered_areas` 只有 cash 或其他局部範圍時，不得通過全域 `PROFESSIONALLY_REVIEWED`；首屏顯示覆核者、時間與完整範圍。
+43. **圖表也是多選**：O6 啟用後詢問 `Q-VISUAL`，提供 AI 預選的損益柱狀、損益正負影響柱狀、成本長條與選配甜甜圈；未確認不得改成 `ENABLED`。
+44. **Excel 真的有圖**：匯出 `management-dashboard.xlsx` 後重新匯入，`Dashboard` 中的原生 chart object 數不少於已啟用且資料適用的圖表數；不能只有 chart ID 或截圖。
+45. **圖表資料可追溯**：`Chart Data` 必須是可見公式區，引用 `P&L`、`Cost Analysis` 或 `Dimension Profit`；圖表不可嵌入另一組硬編金額。
+46. **甜甜圈安全條件**：成本有負數、總額不大於零、少於兩類或沒有覆蓋全部成本時，validator 失敗或 renderer 拒絕產生甜甜圈；不取絕對值繞過。
+47. **Workbook 驗收**：verifier 重新匯入 XLSX，確認七個工作表、原生圖表、無明顯公式錯誤並渲染 Dashboard；完成前 manifest 不得標為 `VERIFIED`。

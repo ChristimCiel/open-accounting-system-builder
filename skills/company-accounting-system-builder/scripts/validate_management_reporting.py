@@ -96,6 +96,14 @@ ALLOWED_REPORT_STATUSES = {
 }
 APPROVED_POLICY_STATUSES = {"owner_confirmed", "professionally_reviewed"}
 UNVALIDATED_CLOSE_MODULES = {"O6-MONEY", "O6-TREND", "O6-TAX-RESERVE", "O6-SCENARIO"}
+VISUALIZATION_SPECS = {
+    "VIZ-PNL-COLUMNS": ("PNL_COLUMNS", "O6-PROFIT"),
+    "VIZ-PNL-BRIDGE": ("PNL_BRIDGE_COLUMNS", "O6-PROFIT"),
+    "VIZ-COST-BARS": ("COST_BARS", "O6-COST"),
+    "VIZ-COST-DONUT": ("COST_DONUT", "O6-COST"),
+    "VIZ-DIMENSION-PROFIT": ("DIMENSION_PROFIT_BARS", "O6-DIMENSION"),
+}
+REQUIRED_OWNER_QUESTION_IDS = {"Q-DECISION", "Q-DIMENSION", "Q-COMPARISON", "Q-VISUAL"}
 REQUIRED_TRUST_CHECKS = {
     "EVIDENCE_GAPS",
     "OPEN_ITEMS",
@@ -332,6 +340,39 @@ def validate_dashboard_config(config, stage: str, enabled: bool, report) -> set[
         if status == "ENABLED":
             enabled_modules.add(module_id)
 
+    visualizations = config.get("visualizations")
+    if not isinstance(visualizations, list):
+        report.error("management-dashboard-config.json: visualizations must be an array")
+        visualizations = []
+    seen_visuals: set[str] = set()
+    for index, visual in enumerate(visualizations, start=1):
+        if not isinstance(visual, dict):
+            report.error(f"management-dashboard-config.json visualization #{index}: must be an object")
+            continue
+        visual_id = str(visual.get("visual_id", "")).strip()
+        status = str(visual.get("status", "")).upper()
+        if not visual_id or visual_id in seen_visuals:
+            report.error(f"management-dashboard-config.json: blank or duplicate visual_id {visual_id!r}")
+        seen_visuals.add(visual_id)
+        if status not in ALLOWED_MODULE_STATUSES:
+            report.error(f"management-dashboard-config.json {visual_id}: invalid status {status!r}")
+        recommendation = str(visual.get("recommendation", "")).upper()
+        if recommendation not in {"AI_RECOMMENDED", "OPTIONAL", "NOT_RECOMMENDED"}:
+            report.error(f"management-dashboard-config.json {visual_id}: invalid recommendation")
+        if not str(visual.get("rationale", "")).strip():
+            report.error(f"management-dashboard-config.json {visual_id}: rationale is required")
+        spec = VISUALIZATION_SPECS.get(visual_id)
+        if spec:
+            expected_chart_id, expected_module = spec
+            if str(visual.get("chart_id", "")).strip() != expected_chart_id:
+                report.error(f"management-dashboard-config.json {visual_id}: chart_id mismatch")
+            if str(visual.get("requires_module", "")).strip() != expected_module:
+                report.error(f"management-dashboard-config.json {visual_id}: requires_module mismatch")
+            if status == "ENABLED" and expected_module not in enabled_modules:
+                report.error(f"management-dashboard-config.json {visual_id}: required module is not enabled")
+        elif status == "ENABLED":
+            report.error(f"management-dashboard-config.json: v1.4 cannot close with unknown visualization {visual_id!r}")
+
     if enabled and stage == "close":
         if config.get("status") != "OWNER_CONFIRMED":
             report.error("management-dashboard-config.json: O6 close requires OWNER_CONFIRMED status")
@@ -356,13 +397,14 @@ def validate_dashboard_config(config, stage: str, enabled: bool, report) -> set[
         unsupported.extend(sorted(module_id for module_id in enabled_modules if module_id not in KNOWN_MODULES))
         if unsupported:
             report.error(
-                "management-dashboard-config.json: v1.3 cannot close with unvalidated modules enabled: "
+                "management-dashboard-config.json: v1.4 cannot close with unvalidated modules enabled: "
                 + ", ".join(unsupported)
             )
         owner_questions = config.get("owner_questions")
-        if not isinstance(owner_questions, list) or len(owner_questions) < 3:
-            report.error("management-dashboard-config.json: close requires at least three answered owner decision questions")
+        if not isinstance(owner_questions, list):
+            report.error("management-dashboard-config.json: close requires answered owner decision questions")
         else:
+            answered_question_ids: set[str] = set()
             for index, item in enumerate(owner_questions, start=1):
                 if not isinstance(item, dict):
                     report.error(f"management-dashboard-config.json owner question #{index}: must be an object")
@@ -372,6 +414,14 @@ def validate_dashboard_config(config, stage: str, enabled: bool, report) -> set[
                         report.error(f"management-dashboard-config.json owner question #{index}: {field} is required")
                 if str(item.get("status", "")).upper() != "ANSWERED":
                     report.error(f"management-dashboard-config.json owner question #{index}: status must be ANSWERED")
+                else:
+                    answered_question_ids.add(str(item.get("question_id", "")).strip())
+            missing_questions = sorted(REQUIRED_OWNER_QUESTION_IDS - answered_question_ids)
+            if missing_questions:
+                report.error(
+                    "management-dashboard-config.json: close requires answered owner questions "
+                    + ", ".join(missing_questions)
+                )
     return enabled_modules
 
 
@@ -953,7 +1003,7 @@ def validate_management_reporting(
     if isinstance(config, dict) and str(config.get("display_currency", "")).strip() != reporting_currency:
         report.error("management-dashboard-config.json: display_currency does not match report")
     if reporting_currency != functional_currency:
-        report.error("management-report.json: v1.3 supports only reporting_currency equal to functional_currency")
+        report.error("management-report.json: v1.4 supports only reporting_currency equal to functional_currency")
 
     journal_path = pack_dir / "journal.csv"
     journal_rows = csv_rows.get("journal.csv", [])
@@ -976,6 +1026,7 @@ def validate_management_reporting(
         "allocation_policies_sha256": "allocation-policy-register.json",
         "budgets_sha256": "budgets.csv",
         "renderer_sha256": None,
+        "workbook_renderer_sha256": "__WORKBOOK_RENDERER__",
         "evidence_register_sha256": "evidence-register.csv",
         "open_items_sha256": "open-items.csv",
     }
@@ -984,17 +1035,28 @@ def validate_management_reporting(
         report.error("management-report.json: source_checksums must contain the complete source set")
     else:
         for checksum_field, filename in checksum_paths.items():
-            source_path = (
-                Path(__file__).resolve().with_name("render_management_dashboard.py")
-                if filename is None
-                else pack_dir / filename
-            )
+            if filename is None:
+                source_path = Path(__file__).resolve().with_name("render_management_dashboard.py")
+            elif filename == "__WORKBOOK_RENDERER__":
+                source_path = Path(__file__).resolve().with_name("render_management_workbook.mjs")
+            else:
+                source_path = pack_dir / filename
             if not source_path.is_file():
-                report.error(f"management-report.json: checksum source is missing: {filename or 'render_management_dashboard.py'}")
+                display_name = (
+                    "render_management_dashboard.py" if filename is None
+                    else "render_management_workbook.mjs" if filename == "__WORKBOOK_RENDERER__"
+                    else filename
+                )
+                report.error(f"management-report.json: checksum source is missing: {display_name}")
                 continue
             expected_checksum = hashlib.sha256(source_path.read_bytes()).hexdigest()
             if source_checksums.get(checksum_field) != expected_checksum:
-                report.error(f"management-report.json: {checksum_field} does not match {filename or 'render_management_dashboard.py'}")
+                display_name = (
+                    "render_management_dashboard.py" if filename is None
+                    else "render_management_workbook.mjs" if filename == "__WORKBOOK_RENDERER__"
+                    else filename
+                )
+                report.error(f"management-report.json: {checksum_field} does not match {display_name}")
     if isinstance(manifest, dict):
         if manifest.get("management_report_revision") != management_report.get("revision"):
             report.error("version-manifest.json: management_report_revision does not match report")
@@ -1401,22 +1463,45 @@ def validate_management_reporting(
             for ref in chart.get(field, []):
                 if str(ref) not in valid_ids:
                     report.error(f"management-report.json chart #{index}: unknown {field} reference {ref!r}")
-        if chart_id in {"PNL_WATERFALL", "PNL_TREND"} and not chart.get("line_ids"):
+        if chart_id in {"PNL_COLUMNS", "PNL_BRIDGE_COLUMNS", "PNL_WATERFALL", "PNL_TREND"} and not chart.get("line_ids"):
             report.error(f"management-report.json chart #{index}: {chart_id} requires line_ids")
-        if chart_id == "COST_BARS" and cost_ids and not chart.get("cost_ids"):
-            report.error(f"management-report.json chart #{index}: COST_BARS requires cost_ids")
+        if chart_id in {"COST_BARS", "COST_DONUT"} and cost_ids and not chart.get("cost_ids"):
+            report.error(f"management-report.json chart #{index}: {chart_id} requires cost_ids")
+        if chart_id == "DIMENSION_PROFIT_BARS" and dimension_ids and not chart.get("dimension_ids"):
+            report.error(f"management-report.json chart #{index}: DIMENSION_PROFIT_BARS requires dimension_ids")
         if budget_status == "NOT_PROVIDED" and "budget" in str(chart).lower():
             report.error(f"management-report.json chart #{index}: budget chart is forbidden without budget")
-    required_chart_ids = set()
-    if "O6-PROFIT" in enabled_modules:
-        required_chart_ids.add("PNL_WATERFALL")
-    if "O6-COST" in enabled_modules:
-        required_chart_ids.add("COST_BARS")
-    if "O6-TREND" in enabled_modules:
-        required_chart_ids.add("PNL_TREND")
+    enabled_visual_ids = {
+        str(item.get("visual_id", "")).strip()
+        for item in config.get("visualizations", [])
+        if isinstance(item, dict) and str(item.get("status", "")).upper() == "ENABLED"
+    } if isinstance(config, dict) else set()
+    required_chart_ids = {
+        VISUALIZATION_SPECS[visual_id][0]
+        for visual_id in enabled_visual_ids
+        if visual_id in VISUALIZATION_SPECS
+    }
     missing_charts = sorted(required_chart_ids - seen_chart_ids)
     if missing_charts:
         report.error("management-report.json: missing enabled visual references " + ", ".join(missing_charts))
+    if "VIZ-COST-DONUT" in enabled_visual_ids:
+        cost_amounts = [
+            decimal_value(item.get("management_amount"), f"management-report.json COST_DONUT cost #{index}", report)
+            for index, item in enumerate(cost_rows, start=1)
+            if isinstance(item, dict)
+        ]
+        if len(cost_amounts) < 2:
+            report.error("management-report.json: COST_DONUT requires at least two cost categories")
+        if any(amount < 0 for amount in cost_amounts):
+            report.error("management-report.json: COST_DONUT cannot represent negative cost categories; use COST_BARS")
+        if sum(cost_amounts, Decimal("0")) <= 0:
+            report.error("management-report.json: COST_DONUT requires a positive cost total")
+        donut_chart = next(
+            (chart for chart in charts if isinstance(chart, dict) and chart.get("chart_id") == "COST_DONUT"),
+            None,
+        )
+        if donut_chart and set(map(str, donut_chart.get("cost_ids", []))) != cost_ids:
+            report.error("management-report.json: COST_DONUT must reference every cost category for a complete whole")
 
     _validate_dimensions(
         enabled_modules,

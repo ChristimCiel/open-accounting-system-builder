@@ -8,6 +8,13 @@
   "display_currency": "",
   "comparisons": [],
   "dimension_types": [],
+  "visualizations": [
+    {"visual_id": "VIZ-PNL-COLUMNS", "chart_id": "PNL_COLUMNS", "chart_type": "COLUMN", "status": "PROPOSED", "recommendation": "AI_RECOMMENDED", "rationale": "並列帳載權責與管理口徑，直觀比較收入、毛利、營業利益與淨利。", "requires_module": "O6-PROFIT"},
+    {"visual_id": "VIZ-PNL-BRIDGE", "chart_id": "PNL_BRIDGE_COLUMNS", "chart_type": "COLUMN_BRIDGE", "status": "PROPOSED", "recommendation": "AI_RECOMMENDED", "rationale": "用正負柱狀顯示收入、成本、費用與淨利對結果的影響。", "requires_module": "O6-PROFIT"},
+    {"visual_id": "VIZ-COST-BARS", "chart_id": "COST_BARS", "chart_type": "HORIZONTAL_BAR", "status": "PROPOSED", "recommendation": "AI_RECOMMENDED", "rationale": "由大到小顯示主要成本，適合精確比較。", "requires_module": "O6-COST"},
+    {"visual_id": "VIZ-COST-DONUT", "chart_id": "COST_DONUT", "chart_type": "DOUGHNUT", "status": "PROPOSED", "recommendation": "OPTIONAL", "rationale": "只在全部成本非負、總額大於零且至少兩類時，顯示成本構成占比。", "requires_module": "O6-COST"},
+    {"visual_id": "VIZ-DIMENSION-PROFIT", "chart_id": "DIMENSION_PROFIT_BARS", "chart_type": "COLUMN", "status": "PROPOSED", "recommendation": "OPTIONAL", "rationale": "在啟用維度分析後，比較產品、專案、門市或通路的管理口徑獲利。", "requires_module": "O6-DIMENSION"}
+  ],
   "modules": [
     {"module_id": "O6-DASH", "status": "PROPOSED", "recommendation": "AI_RECOMMENDED", "rationale": "老闆首頁：本月賺賠、可用現金與優先待辦。"},
     {"module_id": "O6-PROFIT", "status": "PROPOSED", "recommendation": "AI_RECOMMENDED", "rationale": "用每 100 元收入最後留下多少說明損益。"},

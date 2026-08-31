@@ -2,7 +2,7 @@
 name: company-accounting-system-builder
 description: Interview company owners to understand their industry and business model, research the applicable current accounting framework, diagnose existing records, and build or review a traceable accounting system with a structured accrual P&L draft and owner-friendly management reporting. 適用於新公司建帳、舊帳遷移、內帳制度、成本與獲利分析、日常交易控管與月結。
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
   author: "Tim Chen"
   license: "Apache-2.0"
 ---
@@ -61,7 +61,9 @@ An open-source Company Accounting System Builder maintained by Tim Chen.
 
 若 O6 或管理報表自訂功能啟用，同時讀 `management-dashboard-config.json` 與 [references/management-reporting.md](references/management-reporting.md)。所有損益、成本、維度與首屏數字必須由同一份 `POSTED` journal 重算；管理重分類、分攤或非 GAAP 調整只能留在有 policy、來源與核准的 bridge，不得回寫成第二套交易帳。
 
-產生 `management-report.json` 後，執行 `python scripts/render_management_dashboard.py <公司包>/management-report.json <公司包>/management-dashboard-config.json <公司包>/management-dashboard.md --overwrite` 固定生成老闆版 Markdown；先顯示將覆寫的已授權公司包路徑與變更摘要。不得手動另填 dashboard 數字。若啟用的 O6 子功能尚無 v1.3 驗證契約，保留為需求草案，不宣稱 close 已完成。
+產生 `management-report.json` 後，執行 `python scripts/render_management_dashboard.py <公司包>/management-report.json <公司包>/management-dashboard-config.json <公司包>/management-dashboard.md --overwrite` 固定生成老闆版 Markdown；先顯示將覆寫的已授權公司包路徑與變更摘要。不得手動另填 dashboard 數字。若啟用的 O6 子功能尚無 v1.4 驗證契約，保留為需求草案，不宣稱 close 已完成。
+
+執行環境可建立試算表時，先讓老闆確認 `management-dashboard-config.json.visualizations[]` 的多選結果。依試算表工作流取得受支援的 Node.js 與 `@oai/artifact-tool`，把 `scripts/render_management_workbook.mjs` 與 `scripts/verify_management_workbook.mjs` 複製到同一個臨時工作目錄，在該處連結 loader 提供的 `node_modules`。產生 `management-dashboard.xlsx` 後，必須以 verifier 重新匯入，檢查原生圖表數、公式錯誤與關鍵範圍，再渲染 `Dashboard` 做視覺驗收。未完成此驗收時，manifest 不得標為 `VERIFIED`。
 
 每次處理要：
 
@@ -103,7 +105,7 @@ An open-source Company Accounting System Builder maintained by Tim Chen.
 - 待補憑證、應收、應付、暫估、衝突、期限與專業覆核均有負責人與下一步。
 - 系統建議說明為什麼適合目前公司，以及何種情況出現時應升級。
 - `feature-selection.json` 保留 AI 推薦、使用者多選結果、自訂功能、停用狀態與變更記錄；正式作業前功能組合已由負責人確認。
-- 啟用管理報表時，`management-report.json` 可由 journal checksum 重算並調節至帳載淨利；`management-dashboard.md` 不含獨立手填數字。環境支援試算表時可另建 `management-dashboard.xlsx`，否則交付 Markdown/JSON 並明示不是互動圖表。
+- 啟用管理報表時，`management-report.json` 可由 journal checksum 重算並調節至帳載淨利；`management-dashboard.md` 不含獨立手填數字。環境支援試算表時，`management-dashboard.xlsx` 必須有可見的公式來源、原生圖表、`Data & Lineage`、`Chart Data` 與 `Checks`；否則交付 Markdown/JSON 並明示無原生互動圖表。
 - 經過代表性交易試跑與驗收。
 - 交付前依階段執行 `python scripts/validate_company_pack.py <公司包資料夾> --stage onboarding|draft|posting|close`。只有 `posting` 或 `close` 階段通過才表示對應的機械性關卡完成；任何階段通過都不代表會計、稅務或法律正確。
 - 新建或重大更新 Skill 時，用 [references/acceptance-scenarios.md](references/acceptance-scenarios.md) 做獨立前向測試，不把預期答案先喂給測試者。

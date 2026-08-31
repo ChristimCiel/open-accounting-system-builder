@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import re
 from collections import defaultdict
@@ -736,15 +737,17 @@ def validate_manifest(data, pack_dir: Path, stage: str, state, report: Report) -
         "status", "workflow_stage", "current_gate", "feature_selection_revision",
         "feature_selection_status", "management_report_revision",
         "management_report_status", "management_report_ledger_sha256",
+        "management_workbook_status", "management_workbook_sha256",
+        "management_workbook_chart_ids",
         "output_files", "validation", "generated_at", "updated_at"
     }
     missing = sorted(required - set(data))
     if missing:
         report.error(f"version-manifest.json: missing fields {', '.join(missing)}")
-    if data.get("schema_version") != "1.3":
-        report.error("version-manifest.json: schema_version must be '1.3'")
-    if data.get("skill_version") != "1.3.0":
-        report.error("version-manifest.json: skill_version must be '1.3.0'")
+    if data.get("schema_version") != "1.4":
+        report.error("version-manifest.json: schema_version must be '1.4'")
+    if data.get("skill_version") != "1.4.0":
+        report.error("version-manifest.json: skill_version must be '1.4.0'")
     if data.get("workflow_stage") != stage:
         report.error(
             f"version-manifest.json: workflow_stage {data.get('workflow_stage')!r} does not match requested stage {stage!r}"
@@ -779,6 +782,31 @@ def validate_manifest(data, pack_dir: Path, stage: str, state, report: Report) -
         report.error(f"version-manifest.json: status {status!r} is not valid for {stage}")
     if stage == "close" and not str(data.get("period", "")).strip():
         report.error("version-manifest.json: close stage requires period")
+
+    workbook_status = str(data.get("management_workbook_status", "")).upper()
+    workbook_hash = str(data.get("management_workbook_sha256", "")).lower()
+    workbook_chart_ids = data.get("management_workbook_chart_ids")
+    workbook_path = pack_dir / "management-dashboard.xlsx"
+    if workbook_status not in {"NOT_GENERATED", "GENERATED", "VERIFIED"}:
+        report.error("version-manifest.json: invalid management_workbook_status")
+    if not isinstance(workbook_chart_ids, list) or len(workbook_chart_ids) != len(set(workbook_chart_ids)):
+        report.error("version-manifest.json: management_workbook_chart_ids must be a unique array")
+    if workbook_status == "NOT_GENERATED":
+        if workbook_hash:
+            report.error("version-manifest.json: NOT_GENERATED workbook cannot have a checksum")
+        if workbook_path.is_file():
+            report.error("version-manifest.json: management-dashboard.xlsx exists but status is NOT_GENERATED")
+    elif workbook_status in {"GENERATED", "VERIFIED"}:
+        if not workbook_path.is_file():
+            report.error("version-manifest.json: generated management workbook is missing")
+        elif not re.fullmatch(r"[0-9a-f]{64}", workbook_hash):
+            report.error("version-manifest.json: management_workbook_sha256 must be 64 hex characters")
+        elif hashlib.sha256(workbook_path.read_bytes()).hexdigest() != workbook_hash:
+            report.error("version-manifest.json: management workbook checksum does not match file bytes")
+        if not isinstance(outputs, list) or "management-dashboard.xlsx" not in outputs:
+            report.error("version-manifest.json: generated workbook must be listed in output_files")
+        if stage == "close" and workbook_status != "VERIFIED":
+            report.error("version-manifest.json: close requires a generated workbook to be visually VERIFIED")
 
 
 def validate_journal(

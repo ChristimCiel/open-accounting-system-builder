@@ -25,6 +25,7 @@
     "allocation_policies_sha256": "",
     "budgets_sha256": "",
     "renderer_sha256": "",
+    "workbook_renderer_sha256": "",
     "evidence_register_sha256": "",
     "open_items_sha256": ""
   },

@@ -186,8 +186,10 @@ class ManagementReportingTests(unittest.TestCase):
             "missing_data": [],
             "warnings": [],
             "charts": [
-                {"chart_id": "PNL_WATERFALL", "line_ids": ["NET_REVENUE", "COST_OF_SALES", "OPERATING_EXPENSE", "NET_PROFIT"]},
+                {"chart_id": "PNL_COLUMNS", "line_ids": ["NET_REVENUE", "GROSS_PROFIT", "OPERATING_PROFIT", "NET_PROFIT"]},
+                {"chart_id": "PNL_BRIDGE_COLUMNS", "line_ids": ["NET_REVENUE", "COST_OF_SALES", "OPERATING_EXPENSE", "OTHER_INCOME", "OTHER_EXPENSE", "INCOME_TAX", "NET_PROFIT"]},
                 {"chart_id": "COST_BARS", "cost_ids": ["COST-5000", "COST-6000"]},
+                {"chart_id": "COST_DONUT", "cost_ids": ["COST-5000", "COST-6000"]},
             ],
             "prepared_by": "synthetic-preparer",
             "approved_by": "synthetic-owner",
@@ -227,6 +229,14 @@ class ManagementReportingTests(unittest.TestCase):
                 {"question_id": "Q-DECISION", "question": "What decision?", "answer": "Cost control", "source_locator": "test:owner", "status": "ANSWERED"},
                 {"question_id": "Q-DIMENSION", "question": "Which dimension?", "answer": "None", "source_locator": "test:owner", "status": "ANSWERED"},
                 {"question_id": "Q-COMPARISON", "question": "Which comparison?", "answer": "Actual only", "source_locator": "test:owner", "status": "ANSWERED"},
+                {"question_id": "Q-VISUAL", "question": "Which charts?", "answer": "P&L columns, P&L bridge columns, cost bars, cost doughnut", "source_locator": "test:owner", "status": "ANSWERED"},
+            ],
+            "visualizations": [
+                {"visual_id": "VIZ-PNL-COLUMNS", "chart_id": "PNL_COLUMNS", "chart_type": "COLUMN", "status": "ENABLED", "recommendation": "AI_RECOMMENDED", "rationale": "Synthetic P&L comparison.", "requires_module": "O6-PROFIT"},
+                {"visual_id": "VIZ-PNL-BRIDGE", "chart_id": "PNL_BRIDGE_COLUMNS", "chart_type": "COLUMN_BRIDGE", "status": "ENABLED", "recommendation": "AI_RECOMMENDED", "rationale": "Synthetic P&L bridge.", "requires_module": "O6-PROFIT"},
+                {"visual_id": "VIZ-COST-BARS", "chart_id": "COST_BARS", "chart_type": "HORIZONTAL_BAR", "status": "ENABLED", "recommendation": "AI_RECOMMENDED", "rationale": "Synthetic cost ranking.", "requires_module": "O6-COST"},
+                {"visual_id": "VIZ-COST-DONUT", "chart_id": "COST_DONUT", "chart_type": "DOUGHNUT", "status": "ENABLED", "recommendation": "OPTIONAL", "rationale": "Synthetic valid cost mix.", "requires_module": "O6-COST"},
+                {"visual_id": "VIZ-DIMENSION-PROFIT", "chart_id": "DIMENSION_PROFIT_BARS", "chart_type": "COLUMN", "status": "DECLINED", "recommendation": "OPTIONAL", "rationale": "No dimension in base fixture.", "requires_module": "O6-DIMENSION"},
             ],
             "modules": modules,
             "selection_confirmation": {"status": "CONFIRMED", "confirmed_by": "synthetic-owner", "confirmed_at": "2026-08-31T00:00:00+08:00", "source_locator": "test:owner-confirmation"},
@@ -277,6 +287,10 @@ class ManagementReportingTests(unittest.TestCase):
         renderer_path = Path(__file__).resolve().with_name("render_management_dashboard.py")
         management_report["source_checksums"]["renderer_sha256"] = hashlib.sha256(
             renderer_path.read_bytes()
+        ).hexdigest()
+        workbook_renderer_path = Path(__file__).resolve().with_name("render_management_workbook.mjs")
+        management_report["source_checksums"]["workbook_renderer_sha256"] = hashlib.sha256(
+            workbook_renderer_path.read_bytes()
         ).hexdigest()
         (pack_dir / "management-dashboard.md").write_text(
             render_management_dashboard(config, management_report),
@@ -562,6 +576,51 @@ class ManagementReportingTests(unittest.TestCase):
             combined = "\n".join(report.errors)
             self.assertIn("only ID references are allowed", combined)
             self.assertIn("not the deterministic rendering", combined)
+
+    def test_cost_doughnut_rejects_negative_part_to_whole_data(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="management-report-donut-negative-") as temp:
+            pack_dir = Path(temp)
+            fixture = self._fixture(pack_dir)
+            fixture["management_report"]["cost_breakdown"][0]["management_amount"] = "-600"
+            self._persist_config_and_dashboard(pack_dir, fixture)
+            report = self._run(pack_dir, fixture)
+            self.assertTrue(any(
+                "COST_DONUT cannot represent negative cost categories" in message
+                for message in report.errors
+            ))
+
+    def test_cost_doughnut_must_cover_the_complete_cost_whole(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="management-report-donut-incomplete-") as temp:
+            pack_dir = Path(temp)
+            fixture = self._fixture(pack_dir)
+            donut = next(
+                item for item in fixture["management_report"]["charts"]
+                if item["chart_id"] == "COST_DONUT"
+            )
+            donut["cost_ids"] = ["COST-5000"]
+            report = self._run(pack_dir, fixture)
+            self.assertTrue(any(
+                "COST_DONUT must reference every cost category" in message
+                for message in report.errors
+            ))
+
+    def test_close_requires_owner_visual_answer_and_enabled_chart_reference(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="management-report-visual-selection-") as temp:
+            pack_dir = Path(temp)
+            fixture = self._fixture(pack_dir)
+            fixture["config"]["owner_questions"] = [
+                item for item in fixture["config"]["owner_questions"]
+                if item["question_id"] != "Q-VISUAL"
+            ]
+            fixture["management_report"]["charts"] = [
+                item for item in fixture["management_report"]["charts"]
+                if item["chart_id"] != "PNL_COLUMNS"
+            ]
+            self._persist_config_and_dashboard(pack_dir, fixture)
+            report = self._run(pack_dir, fixture)
+            combined = "\n".join(report.errors)
+            self.assertIn("Q-VISUAL", combined)
+            self.assertIn("missing enabled visual references PNL_COLUMNS", combined)
 
     def test_cash_cannot_copy_net_profit(self) -> None:
         with tempfile.TemporaryDirectory(prefix="management-report-cash-tamper-") as temp:

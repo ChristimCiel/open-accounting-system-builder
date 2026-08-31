@@ -36,6 +36,8 @@ REQUIRED_SKILL_PATHS = {
     "scripts/validate_company_pack.py",
     "scripts/validate_management_reporting.py",
     "scripts/render_management_dashboard.py",
+    "scripts/render_management_workbook.mjs",
+    "scripts/verify_management_workbook.mjs",
     "scripts/test_management_reporting.py",
     "references/onboarding-interview.md",
     "references/feature-customization.md",
@@ -90,7 +92,7 @@ def main() -> int:
             header = frontmatter.group(1)
             for expected in (
                 "name: company-accounting-system-builder",
-                'version: "1.3.0"',
+                'version: "1.4.0"',
                 'author: "Tim Chen"',
                 'license: "Apache-2.0"',
             ):
@@ -129,6 +131,16 @@ def main() -> int:
             ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         except (OSError, SyntaxError) as exc:
             errors.append(f"invalid Python {path.relative_to(ROOT)}: {exc}")
+
+    node = shutil.which("node")
+    if node:
+        for path in SKILL.rglob("*.mjs"):
+            checked = run([node, "--check", str(path)])
+            if checked.returncode != 0:
+                errors.append(
+                    f"invalid JavaScript {path.relative_to(ROOT)}: "
+                    + (checked.stdout + checked.stderr).strip()
+                )
 
     init_script = SKILL / "scripts" / "init_company_pack.py"
     validate_script = SKILL / "scripts" / "validate_company_pack.py"
