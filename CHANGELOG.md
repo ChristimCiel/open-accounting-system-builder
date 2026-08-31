@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Made Traditional Chinese the default repository README.
 - Moved the complete English documentation to `README.en.md` and added language switching links to both versions.
+- Updated GitHub Actions to current Node 24-compatible major versions.
 
 ## [1.1.0] - 2026-08-31
 
