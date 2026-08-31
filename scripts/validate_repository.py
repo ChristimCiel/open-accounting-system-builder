@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skills" / "company-accounting-system-builder"
 REQUIRED_ROOT_FILES = {
     "README.md",
+    "README.en.md",
     "LICENSE",
     "NOTICE",
     "CITATION.cff",
@@ -84,6 +85,13 @@ def main() -> int:
 
         if re.search(r"/Users/|[A-Za-z]:\\Users\\", text):
             errors.append("SKILL.md contains a local user path")
+
+    readme_zh = ROOT / "README.md"
+    readme_en = ROOT / "README.en.md"
+    if readme_zh.is_file() and "[English](README.en.md)" not in readme_zh.read_text(encoding="utf-8"):
+        errors.append("README.md is missing the English language link")
+    if readme_en.is_file() and "[繁體中文](README.md)" not in readme_en.read_text(encoding="utf-8"):
+        errors.append("README.en.md is missing the Traditional Chinese language link")
 
     for path in SKILL.rglob("*.json"):
         try:

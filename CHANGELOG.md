@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and releases use semantic versioning.
 
+## [Unreleased]
+
+### Changed
+
+- Made Traditional Chinese the default repository README.
+- Moved the complete English documentation to `README.en.md` and added language switching links to both versions.
+
 ## [1.1.0] - 2026-08-31
 
 ### Added
