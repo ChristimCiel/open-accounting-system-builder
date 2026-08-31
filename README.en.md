@@ -24,6 +24,10 @@ Company facts, transactions, account numbers, customer data, and professional re
 
 ## What it does
 
+- Starts with an owner-friendly feature menu instead of asking for accounting accounts.
+- Preselects an AI-recommended scope that the owner can accept, change as a multi-select, or extend with custom features.
+- Separates AI recommendations from owner confirmation and versions later additions, disablements, and priority changes.
+- Keeps traceability, deduplication, journal balance, reconciliation, write previews, and professional boundaries mandatory even when optional features are disabled.
 - Runs progressive interviews in small decision-focused rounds.
 - Maps payment, fulfillment, revenue, cost, refund, and platform-settlement events.
 - Distinguishes facts, AI proposals, official sources, open questions, and professional decisions.
@@ -52,11 +56,12 @@ tell me that it will be available on my next turn.
 Then, on the next turn:
 
 ```text
-Use $company-accounting-system-builder. Do not post transactions yet.
-Interview me progressively, explain the accounting implications of my industry,
-research the current official framework for my jurisdiction, and build a
-company-specific Accounting Pack. Mark anything requiring an accountant, tax
-professional, auditor, or lawyer as PROFESSIONAL_DECISION_REQUIRED.
+Use $company-accounting-system-builder. Do not post transactions yet. First show
+me an AI-preselected, multi-select feature menu. Let me accept the recommendation,
+add or remove several outcomes at once, or define custom features. After I confirm,
+interview me progressively and build only the selected parts of my company-specific
+Accounting Pack. Mark anything requiring an accountant, tax professional,
+auditor, or lawyer as PROFESSIONAL_DECISION_REQUIRED.
 ```
 
 The installer places the Skill under the user's Codex Skills directory. Other AI products may be able to read the repository but cannot necessarily install or persist local Skills.
@@ -79,9 +84,13 @@ Restart or reload the agent if it does not discover the Skill immediately.
 
 ## First-use workflow
 
-The Skill begins with progressive interviews rather than asking the owner to choose accounting accounts immediately:
+The first substantive question is always what the owner wants the system to do. The Skill shows eight plain-language outcomes, preselects recommendations from known context, and lets the owner reply with “accept recommendations,” add/remove several IDs at once, or describe a custom feature. AI recommendations do not become owner choices until the owner explicitly confirms them.
 
-1. Confirm jurisdiction, legal form, operating stage, goals, data scope, and storage location.
+The owner can later type `modify features` to add, disable, reorder, or revise custom features. The Skill shows only the proposed differences, and changes take effect only after confirmation.
+
+Before that confirmation, the Skill does not research standards, read sensitive data, create files, or silently choose a mode. After feature selection, it continues with progressive interviews:
+
+1. Confirm feature priority, jurisdiction, legal form, operating stage, data scope, and storage location.
 2. Understand products, services, payment, fulfillment, refund, platform, direct-cost, and management workflows.
 3. Build an industry accounting map and obtain owner confirmation.
 4. Research current official rules, standards versions, and effective dates for the applicable jurisdiction.

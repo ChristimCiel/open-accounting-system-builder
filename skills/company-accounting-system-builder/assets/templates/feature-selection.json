@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "catalog_version": "1.0",
+  "selection_mode": "MULTI",
+  "revision": 1,
+  "selection_status": "DRAFT",
+  "features": [],
+  "proposed_sequence": [],
+  "selection_confirmation": {
+    "status": "NOT_CONFIRMED",
+    "revision": 0,
+    "decision_reference": "",
+    "confirmed_by": "",
+    "confirmed_at": "",
+    "source_locator": ""
+  },
+  "change_history": [],
+  "updated_at": ""
+}

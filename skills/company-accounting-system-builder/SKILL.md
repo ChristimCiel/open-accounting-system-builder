@@ -2,7 +2,7 @@
 name: company-accounting-system-builder
 description: Interview company owners to understand their industry and business model, research the applicable current accounting framework, diagnose existing records, and build or review a traceable and reconcilable internal accounting system. 適用於新公司建帳、舊帳遷移、內帳制度設計、日常交易控管與月結。
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   author: "Tim Chen"
   license: "Apache-2.0"
 ---
@@ -15,7 +15,9 @@ An open-source Company Accounting System Builder maintained by Tim Chen.
 
 以使用者的工作語言進行訪談與交付。引用法規或準則時保留官方原文名稱，並提供使用者語言的白話說明。台灣以外的公司不得套用台灣司法管轄地 reference，必須另查所在地官方來源。
 
-## 先決定模式
+## 先選功能，再決定模式
+
+在任何會計訪談前，必須先讀 [references/feature-customization.md](references/feature-customization.md) 進行「功能選擇」：以白話、可多選的清單顯示 AI 預選建議，讓使用者可直接採用建議、增減項目或新增自訂功能。AI 不可把「推薦」當成「已選」，也不可跳過使用者確認。
 
 依使用者目的選擇一個主模式，可在完成一階段後轉換：
 
@@ -24,7 +26,7 @@ An open-source Company Accounting System Builder maintained by Tim Chen.
 - `operate`：依已確認的 Company Accounting Pack 處理交易、對帳、待補、月結與管理報表。
 - `review`：做控制、完整性、矛盾、公式、追溯與交接檢查；不把控制檢查等同審計或稅務簽證。
 
-若未找到既有 Company Accounting Pack，且使用者沒有明確要求其他模式，預設為 `setup`。
+只有 F0 功能範圍已由使用者確認後，才可選主模式。若未找到既有 Company Accounting Pack，功能範圍又已確認，且使用者沒有明確要求其他模式，才預設為 `setup`。
 
 ## 漸進式協作
 
@@ -34,23 +36,27 @@ An open-source Company Accounting System Builder maintained by Tim Chen.
 4. 已從文件或前文得知的事實不重問。中斷後先讀取 `interview-state.json` 與最新 manifest，說明上次停點。
 5. 遇到金額、日期、幣別、單據或用途矛盾，只停住受影響的項目；保留衝突兩邊來源，不自行選一個。
 6. G0 尚未確認儲存位置、資料範圍與最小必要權限時，只在對話中顯示預填摘要，不執行初始化腳本、不建立檔案，也不持久化公司事實。若外層工作指令已明確授權隔離目錄，必須把授權來源、範圍、授權者與時間寫入 state。
+7. 依 `feature-selection.json` 中已確認的功能調整訪談與產物；未啟用的選配模組不強迫使用者回答。若新事實觸發另一模組，只顯示「建議增加」的差異與理由，等使用者確認後才啟用。
 
 首次使用時，先讀 [references/onboarding-interview.md](references/onboarding-interview.md)。
 
 ## Setup 與 migrate 工作流
 
-1. 確認司法管轄地、組織型態、營運階段、產業與交付目標。
-2. 讀 [references/onboarding-interview.md](references/onboarding-interview.md) 進行分段訪談，先建立產業會計地圖，再設計科目。
-3. 涉及現行法令、準則、稅務、申報或期限時，必須讀 [references/standards-research.md](references/standards-research.md) 並即時查核官方來源。司法管轄地為台灣時，再讀 [references/jurisdictions/taiwan.md](references/jurisdictions/taiwan.md)。
-4. 讀 [references/system-selection.md](references/system-selection.md)，建議電子表格、會計軟體或混合流程。必須指定單一正式帳務來源，不能讓兩套帳同時成為 master。
-5. 讀 [references/baseline-controls.md](references/baseline-controls.md) 與 [references/transaction-playbooks.md](references/transaction-playbooks.md)，建立公司專屬政策、科目、證據規則、交易流與月結。
-6. 依 [references/deliverable-contract.md](references/deliverable-contract.md) 生成 Company Accounting Pack。使用 `assets/` 內的空白模板，不把示範公司的名稱、統編、人名、金額、帳號、卡號、客戶、單據號或實際交易寫進 Skill。使用者明確確認輸出位置與資料範圍後，可執行 `python scripts/init_company_pack.py <輸出資料夾> --authorization-reference <對話或指令中的授權位置>` 建立空白公司包；腳本不會覆蓋已存在的檔案。
-7. 用代表性交易試跑，至少覆蓋收入、未收款或預收、一筆支出、一個支付/金流通路、一筆模糊或矛盾資料。
-8. 對現有帳本先讀 [references/migration-controls.md](references/migration-controls.md)，只先產生欄位映射、差異、公式/控制風險與遷移預覽。未獲確認前不覆蓋原始檔。
+1. 讀 [references/feature-customization.md](references/feature-customization.md)，先完成功能多選草案與使用者確認。G0 前不寫檔；G0 後寫入 `feature-selection.json`。
+2. 確認司法管轄地、組織型態、營運階段、產業與交付目標。
+3. 讀 [references/onboarding-interview.md](references/onboarding-interview.md) 進行分段訪談，先建立產業會計地圖，再設計科目。商業模式確認後，對照新事實再顯示一次功能推薦差異，只請使用者確認增減的項目。
+4. 涉及現行法令、準則、稅務、申報或期限時，必須讀 [references/standards-research.md](references/standards-research.md) 並即時查核官方來源。司法管轄地為台灣時，再讀 [references/jurisdictions/taiwan.md](references/jurisdictions/taiwan.md)。
+5. 讀 [references/system-selection.md](references/system-selection.md)，建議電子表格、會計軟體或混合流程。必須指定單一正式帳務來源，不能讓兩套帳同時成為 master。
+6. 讀 [references/baseline-controls.md](references/baseline-controls.md) 與 [references/transaction-playbooks.md](references/transaction-playbooks.md)，建立公司專屬政策、科目、證據規則、交易流與月結。
+7. 依 [references/deliverable-contract.md](references/deliverable-contract.md) 生成 Company Accounting Pack。使用 `assets/` 內的空白模板，不把示範公司的名稱、統編、人名、金額、帳號、卡號、客戶、單據號或實際交易寫進 Skill。使用者明確確認輸出位置與資料範圍後，可執行 `python scripts/init_company_pack.py <輸出資料夾> --authorization-reference <對話或指令中的授權位置>` 建立空白公司包；腳本不會覆蓋已存在的檔案。
+8. 用代表性交易試跑，至少覆蓋收入、未收款或預收、一筆支出、一個支付/金流通路、一筆模糊或矛盾資料。
+9. 對現有帳本先讀 [references/migration-controls.md](references/migration-controls.md)，只先產生欄位映射、差異、公式/控制風險與遷移預覽。未獲確認前不覆蓋原始檔。
 
 ## Operate 與 review 工作流
 
 讀 [references/operating-workflow.md](references/operating-workflow.md)，完成「來源收件 → 公司用途/完整性 → 查重 → 暫定分類 → 人工確認 → 分錄 → 對帳 → 待補/例外 → 月結 → 報表 → 專業覆核」。
+
+開始前先讀 `feature-selection.json`。只執行已啟用的選配模組；但不得因某模組未啟用而略過真實交易、證據、對帳或法定/專業風險的記錄。
 
 每次處理要：
 
@@ -89,6 +95,7 @@ An open-source Company Accounting System Builder maintained by Tim Chen.
 - 所有正式交易可追溯、可查重，借貸平衡，並與銀行/信用卡/金流平台對帳或明確列出未對帳原因。
 - 待補憑證、應收、應付、暫估、衝突、期限與專業覆核均有負責人與下一步。
 - 系統建議說明為什麼適合目前公司，以及何種情況出現時應升級。
+- `feature-selection.json` 保留 AI 推薦、使用者多選結果、自訂功能、停用狀態與變更記錄；正式作業前功能組合已由負責人確認。
 - 經過代表性交易試跑與驗收。
 - 交付前依階段執行 `python scripts/validate_company_pack.py <公司包資料夾> --stage onboarding|draft|posting|close`。只有 `posting` 或 `close` 階段通過才表示對應的機械性關卡完成；任何階段通過都不代表會計、稅務或法律正確。
 - 新建或重大更新 Skill 時，用 [references/acceptance-scenarios.md](references/acceptance-scenarios.md) 做獨立前向測試，不把預期答案先喂給測試者。

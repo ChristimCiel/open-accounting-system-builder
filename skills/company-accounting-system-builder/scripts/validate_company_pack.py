@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 from collections import defaultdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -16,6 +17,7 @@ from pathlib import Path
 
 REQUIRED_FILES = [
     "company-profile.json",
+    "feature-selection.json",
     "interview-state.json",
     "industry-accounting-map.md",
     "applicable-framework.md",
@@ -95,6 +97,18 @@ EXPECTED_ITEM_STATUSES = {
     "professional_review_items": {"PROFESSIONAL_DECISION_REQUIRED"},
     "next_questions": {"OPEN_QUESTION"},
 }
+CATALOG_FEATURE_IDS = {f"O{index}" for index in range(1, 9)}
+FEATURE_LIFECYCLE_STATUSES = {
+    "PROPOSED", "ENABLED", "DECLINED", "DISABLED", "OUT_OF_SCOPE"
+}
+FEATURE_RECOMMENDATIONS = {"AI_RECOMMENDED", "OPTIONAL", "NOT_RECOMMENDED"}
+FEATURE_PRIORITIES = {"NOW", "NEXT", "LATER", "NOT_SELECTED"}
+DEDUP_CLEAR_STATUSES = {"CLEAR", "NOT_DUPLICATE", "REVIEWED_CLEAR", "UNIQUE"}
+COMPLETE_STATUSES = {"COMPLETE", "SUFFICIENT", "VERIFIED"}
+COMPANY_PURPOSE_STATUSES = {"COMPANY", "CONFIRMED", "CONFIRMED_COMPANY"}
+INTAKE_READY_STATUSES = {"OWNER_CONFIRMED", "POSTED", "READY_TO_POST"}
+JOURNAL_POSTING_STATUSES = {"POSTED", "READY_TO_POST"}
+RESOLVED_STATUSES = {"ANSWERED", "CLOSED", "IMPLEMENTED", "RESOLVED"}
 
 
 class Report:
@@ -148,6 +162,39 @@ def decimal_or_zero(value: str, label: str, report: Report) -> Decimal:
         return Decimal("0")
 
 
+def normalized_status(value: str) -> str:
+    return (value or "").strip().upper().replace("-", "_").replace(" ", "_")
+
+
+def boolean_value(value: str) -> bool:
+    return normalized_status(value) in {"1", "TRUE", "YES", "Y"}
+
+
+def markdown_has_substantive_content(path: Path) -> bool:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#") or line.startswith(">"):
+            continue
+        if line.startswith("|"):
+            cells = [cell.strip() for cell in line.strip("|").split("|")]
+            if cells and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells):
+                continue
+            if cells and cells[0].lower() in {"period", "topic"}:
+                continue
+            if any(cell for cell in cells):
+                return True
+            continue
+        if re.fullmatch(r"- [A-Za-z /]+:", line):
+            continue
+        if line not in {"-", "*"}:
+            return True
+    return False
+
+
 def validate_policy_register(data, report: Report) -> None:
     if not isinstance(data, dict) or not isinstance(data.get("policies"), list):
         report.error("accounting-policy-register.json: policies must be an array")
@@ -176,14 +223,325 @@ def validate_policy_register(data, report: Report) -> None:
             report.error(f"policy {policy_id or index}: invalid status {status!r}")
 
 
+def validate_feature_selection(data, stage: str, state, manifest, report: Report) -> None:
+    if not isinstance(data, dict):
+        report.error("feature-selection.json: must be an object")
+        return
+
+    required_top_level = {
+        "schema_version", "catalog_version", "selection_mode", "revision",
+        "selection_status", "features", "proposed_sequence",
+        "selection_confirmation", "change_history", "updated_at",
+    }
+    missing = sorted(required_top_level - set(data))
+    if missing:
+        report.error(f"feature-selection.json: missing fields {', '.join(missing)}")
+    if data.get("schema_version") != "1.0":
+        report.error("feature-selection.json: schema_version must be '1.0'")
+    if not str(data.get("catalog_version", "")).strip():
+        report.error("feature-selection.json: catalog_version is required")
+    if data.get("selection_mode") != "MULTI":
+        report.error("feature-selection.json: selection_mode must be MULTI")
+
+    revision = data.get("revision")
+    if not isinstance(revision, int) or isinstance(revision, bool) or revision < 1:
+        report.error("feature-selection.json: revision must be an integer >= 1")
+        revision = None
+
+    selection_status = data.get("selection_status")
+    if selection_status not in {"DRAFT", "OWNER_CONFIRMED"}:
+        report.error("feature-selection.json: invalid selection_status")
+
+    features = data.get("features")
+    if not isinstance(features, list):
+        report.error("feature-selection.json: features must be an array")
+        features = []
+
+    required_feature_fields = {
+        "feature_id", "name", "source", "lifecycle_status", "recommendation",
+        "priority", "rationale", "basis_source_type", "basis_source_locator",
+        "desired_outcome", "inputs", "outputs", "acceptance_criteria",
+        "frequency", "dependencies", "professional_review_required",
+        "risk_triggers",
+    }
+    seen_feature_ids: set[str] = set()
+    enabled_feature_ids: set[str] = set()
+    catalog_feature_ids: set[str] = set()
+    disabled_feature_ids: set[str] = set()
+    for index, feature in enumerate(features, start=1):
+        if not isinstance(feature, dict):
+            report.error(f"feature-selection.json: feature #{index} must be an object")
+            continue
+        missing_fields = sorted(required_feature_fields - set(feature))
+        if missing_fields:
+            report.error(
+                f"feature-selection.json: feature #{index} missing fields {', '.join(missing_fields)}"
+            )
+        feature_id = str(feature.get("feature_id", "")).strip()
+        if not feature_id:
+            report.error(f"feature-selection.json: feature #{index} has blank feature_id")
+        elif feature_id in seen_feature_ids:
+            report.error(f"feature-selection.json: duplicate feature_id {feature_id}")
+        seen_feature_ids.add(feature_id)
+
+        source = feature.get("source")
+        if source not in {"catalog", "custom"}:
+            report.error(f"feature-selection.json: feature {feature_id or index} has invalid source")
+        elif source == "catalog":
+            catalog_feature_ids.add(feature_id)
+            if feature_id not in CATALOG_FEATURE_IDS:
+                report.error(f"feature-selection.json: unknown catalog feature_id {feature_id!r}")
+        elif not feature_id.startswith("CUST-"):
+            report.error(
+                f"feature-selection.json: custom feature {feature_id or index} must use CUST- prefix"
+            )
+
+        lifecycle_status = feature.get("lifecycle_status")
+        if lifecycle_status not in FEATURE_LIFECYCLE_STATUSES:
+            report.error(
+                f"feature-selection.json: feature {feature_id or index} has invalid lifecycle_status"
+            )
+        elif lifecycle_status == "ENABLED":
+            enabled_feature_ids.add(feature_id)
+        elif lifecycle_status == "DISABLED":
+            disabled_feature_ids.add(feature_id)
+
+        if feature.get("recommendation") not in FEATURE_RECOMMENDATIONS:
+            report.error(
+                f"feature-selection.json: feature {feature_id or index} has invalid recommendation"
+            )
+        if feature.get("priority") not in FEATURE_PRIORITIES:
+            report.error(f"feature-selection.json: feature {feature_id or index} has invalid priority")
+        if not str(feature.get("name", "")).strip():
+            report.error(f"feature-selection.json: feature {feature_id or index} requires name")
+        if not str(feature.get("rationale", "")).strip():
+            report.error(f"feature-selection.json: feature {feature_id or index} requires rationale")
+        for field in (
+            "inputs", "outputs", "acceptance_criteria", "dependencies", "risk_triggers"
+        ):
+            value = feature.get(field)
+            if not isinstance(value, list):
+                report.error(
+                    f"feature-selection.json: feature {feature_id or index} {field} must be an array"
+                )
+        if not isinstance(feature.get("professional_review_required"), bool):
+            report.error(
+                f"feature-selection.json: feature {feature_id or index} professional_review_required must be boolean"
+            )
+        if feature.get("recommendation") == "AI_RECOMMENDED":
+            for field in ("basis_source_type", "basis_source_locator"):
+                if not str(feature.get(field, "")).strip():
+                    report.error(
+                        f"feature-selection.json: AI recommendation {feature_id or index} requires {field}"
+                    )
+        if source == "custom":
+            if not str(feature.get("desired_outcome", "")).strip():
+                report.error(
+                    f"feature-selection.json: custom feature {feature_id or index} requires desired_outcome"
+                )
+            for field in ("outputs", "acceptance_criteria"):
+                value = feature.get(field)
+                if isinstance(value, list) and not value:
+                    report.error(
+                        f"feature-selection.json: custom feature {feature_id or index} requires non-empty {field}"
+                    )
+
+    for feature in features:
+        if not isinstance(feature, dict):
+            continue
+        feature_id = str(feature.get("feature_id", "")).strip()
+        dependencies = feature.get("dependencies")
+        if isinstance(dependencies, list):
+            for dependency in dependencies:
+                if dependency not in seen_feature_ids:
+                    report.error(
+                        f"feature-selection.json: feature {feature_id} has unknown dependency {dependency!r}"
+                    )
+                elif (
+                    feature.get("lifecycle_status") == "ENABLED"
+                    and dependency not in enabled_feature_ids
+                ):
+                    report.error(
+                        f"feature-selection.json: enabled feature {feature_id} requires enabled dependency {dependency!r}"
+                    )
+
+    proposed_sequence = data.get("proposed_sequence")
+    if not isinstance(proposed_sequence, list):
+        report.error("feature-selection.json: proposed_sequence must be an array")
+        proposed_sequence = []
+    elif len(proposed_sequence) != len(set(proposed_sequence)):
+        report.error("feature-selection.json: proposed_sequence contains duplicates")
+    sequence_targets = (
+        seen_feature_ids if selection_status == "DRAFT" else enabled_feature_ids
+    )
+    for feature_id in proposed_sequence:
+        if feature_id not in sequence_targets:
+            report.error(
+                f"feature-selection.json: proposed_sequence item {feature_id!r} is not available for the current status"
+            )
+
+    confirmation = data.get("selection_confirmation")
+    if not isinstance(confirmation, dict):
+        report.error("feature-selection.json: selection_confirmation must be an object")
+        confirmation = {}
+    else:
+        confirmation_required = {
+            "status", "revision", "decision_reference", "confirmed_by",
+            "confirmed_at", "source_locator",
+        }
+        missing_confirmation = sorted(confirmation_required - set(confirmation))
+        if missing_confirmation:
+            report.error(
+                "feature-selection.json: selection_confirmation missing fields "
+                + ", ".join(missing_confirmation)
+            )
+
+    change_history = data.get("change_history")
+    if not isinstance(change_history, list):
+        report.error("feature-selection.json: change_history must be an array")
+        change_history = []
+    history_fields = {
+        "changed_at", "changed_by", "source_locator", "action", "reason",
+        "previous_revision", "new_revision", "feature_ids",
+    }
+    for index, event in enumerate(change_history, start=1):
+        if not isinstance(event, dict):
+            report.error(f"feature-selection.json: change_history item {index} must be an object")
+            continue
+        missing_event = sorted(history_fields - set(event))
+        if missing_event:
+            report.error(
+                f"feature-selection.json: change_history item {index} missing fields {', '.join(missing_event)}"
+            )
+        for field in ("changed_at", "changed_by", "source_locator", "action", "reason"):
+            if not str(event.get(field, "")).strip():
+                report.error(
+                    f"feature-selection.json: change_history item {index} requires {field}"
+                )
+        if not isinstance(event.get("feature_ids"), list) or not event.get("feature_ids"):
+            report.error(
+                f"feature-selection.json: change_history item {index} requires non-empty feature_ids"
+            )
+        previous_revision = event.get("previous_revision")
+        new_revision = event.get("new_revision")
+        if (
+            not isinstance(previous_revision, int)
+            or isinstance(previous_revision, bool)
+            or not isinstance(new_revision, int)
+            or isinstance(new_revision, bool)
+            or new_revision != previous_revision + 1
+        ):
+            report.error(
+                f"feature-selection.json: change_history item {index} revisions must increase by one"
+            )
+        if revision is not None and isinstance(new_revision, int) and new_revision > revision:
+            report.error(
+                f"feature-selection.json: change_history item {index} exceeds current revision"
+            )
+
+    if revision is not None and revision > 1 and not change_history:
+        report.error("feature-selection.json: revision > 1 requires change_history")
+    if disabled_feature_ids and not change_history:
+        report.error("feature-selection.json: disabled features require change_history")
+
+    if selection_status == "DRAFT":
+        report.warning("feature selection is draft; first-use F0 is not owner-confirmed")
+        if any(
+            isinstance(feature, dict)
+            and feature.get("lifecycle_status") in {"ENABLED", "DECLINED", "DISABLED"}
+            for feature in features
+        ):
+            report.error(
+                "feature-selection.json: DRAFT cannot treat proposed choices as owner decisions"
+            )
+        if confirmation.get("status") != "NOT_CONFIRMED" or confirmation.get("revision") != 0:
+            report.error("feature-selection.json: DRAFT must use an unconfirmed revision 0 confirmation")
+    elif selection_status == "OWNER_CONFIRMED":
+        if catalog_feature_ids != CATALOG_FEATURE_IDS:
+            missing_catalog = sorted(CATALOG_FEATURE_IDS - catalog_feature_ids)
+            extra_catalog = sorted(catalog_feature_ids - CATALOG_FEATURE_IDS)
+            detail = []
+            if missing_catalog:
+                detail.append("missing " + ", ".join(missing_catalog))
+            if extra_catalog:
+                detail.append("unknown " + ", ".join(extra_catalog))
+            report.error(
+                "feature-selection.json: confirmed scope must preserve the full O1-O8 menu ("
+                + "; ".join(detail)
+                + ")"
+            )
+        if not enabled_feature_ids:
+            report.error("feature-selection.json: confirmed scope requires at least one enabled feature")
+        if any(
+            isinstance(feature, dict) and feature.get("lifecycle_status") == "PROPOSED"
+            for feature in features
+        ):
+            report.error("feature-selection.json: confirmed scope cannot contain PROPOSED features")
+        if confirmation.get("status") != "CONFIRMED":
+            report.error("feature-selection.json: owner-confirmed scope requires CONFIRMED confirmation")
+        if revision is not None and confirmation.get("revision") != revision:
+            report.error("feature-selection.json: confirmation revision must match current revision")
+        for field in ("decision_reference", "confirmed_by", "confirmed_at", "source_locator"):
+            if not str(confirmation.get(field, "")).strip():
+                report.error(f"feature-selection.json: confirmed scope requires {field}")
+
+        owner_decision_ids = set()
+        if isinstance(state, dict) and isinstance(state.get("owner_confirmed_decisions"), list):
+            owner_decision_ids = {
+                str(item.get("id", "")).strip()
+                for item in state["owner_confirmed_decisions"]
+                if isinstance(item, dict)
+            }
+        if confirmation.get("decision_reference") not in owner_decision_ids:
+            report.error(
+                "feature-selection.json: decision_reference must match an owner_confirmed_decisions id"
+            )
+        if isinstance(state, dict) and state.get("feature_selection_revision") != revision:
+            report.error(
+                "interview-state.json: feature_selection_revision must match confirmed feature revision"
+            )
+
+    if isinstance(manifest, dict):
+        expected_revision = revision if selection_status == "OWNER_CONFIRMED" else 0
+        if manifest.get("feature_selection_revision") != expected_revision:
+            report.error("version-manifest.json: feature_selection_revision does not match feature scope")
+        if manifest.get("feature_selection_status") != selection_status:
+            report.error("version-manifest.json: feature_selection_status does not match feature scope")
+
+    if stage in {"posting", "close"} and selection_status != "OWNER_CONFIRMED":
+        report.error(f"{stage} stage requires an owner-confirmed feature selection")
+
+
 def validate_interview_state(data, stage: str, report: Report) -> None:
     if not isinstance(data, dict):
         report.error("interview-state.json: must be an object")
         return
-    if data.get("schema_version") != "1.1":
-        report.error("interview-state.json: schema_version must be '1.1'")
+    if data.get("schema_version") != "1.2":
+        report.error("interview-state.json: schema_version must be '1.2'")
     if data.get("mode") not in {"setup", "migrate", "operate", "review"}:
         report.error("interview-state.json: invalid mode")
+    planned_modes = data.get("planned_modes")
+    if not isinstance(planned_modes, list):
+        report.error("interview-state.json: planned_modes must be an array")
+    else:
+        invalid_modes = sorted(
+            mode for mode in planned_modes
+            if mode not in {"setup", "migrate", "operate", "review"}
+        )
+        if invalid_modes:
+            report.error(
+                "interview-state.json: planned_modes contains invalid values "
+                + ", ".join(invalid_modes)
+            )
+        if len(planned_modes) != len(set(planned_modes)):
+            report.error("interview-state.json: planned_modes contains duplicates")
+    feature_selection_revision = data.get("feature_selection_revision")
+    if (
+        not isinstance(feature_selection_revision, int)
+        or isinstance(feature_selection_revision, bool)
+        or feature_selection_revision < 0
+    ):
+        report.error("interview-state.json: feature_selection_revision must be an integer >= 0")
     if data.get("workflow_stage") != stage:
         report.error(
             f"interview-state.json: workflow_stage {data.get('workflow_stage')!r} does not match requested stage {stage!r}"
@@ -340,12 +698,17 @@ def validate_manifest(data, pack_dir: Path, stage: str, state, report: Report) -
         return
     required = {
         "schema_version", "skill_name", "skill_version", "company_pack_version",
-        "status", "workflow_stage", "current_gate", "output_files", "validation",
-        "generated_at", "updated_at"
+        "status", "workflow_stage", "current_gate", "feature_selection_revision",
+        "feature_selection_status", "output_files", "validation", "generated_at",
+        "updated_at"
     }
     missing = sorted(required - set(data))
     if missing:
         report.error(f"version-manifest.json: missing fields {', '.join(missing)}")
+    if data.get("schema_version") != "1.2":
+        report.error("version-manifest.json: schema_version must be '1.2'")
+    if data.get("skill_version") != "1.2.0":
+        report.error("version-manifest.json: skill_version must be '1.2.0'")
     if data.get("workflow_stage") != stage:
         report.error(
             f"version-manifest.json: workflow_stage {data.get('workflow_stage')!r} does not match requested stage {stage!r}"
@@ -431,6 +794,139 @@ def validate_journal(
             report.error(f"journal entry {entry_id}: out of balance by {debit - credit}")
 
 
+def validate_operational_controls(
+    pack_dir: Path,
+    stage: str,
+    state,
+    csv_rows: dict[str, list[dict[str, str]]],
+    report: Report,
+) -> None:
+    if stage not in {"posting", "close"}:
+        return
+
+    if not isinstance(state, dict) or not state.get("official_sources_checked"):
+        report.error(
+            f"{stage} stage requires at least one current official source with applicability recorded"
+        )
+
+    professional_items = []
+    if isinstance(state, dict) and isinstance(state.get("professional_review_items"), list):
+        professional_items = state["professional_review_items"]
+    if professional_items:
+        report.error(
+            f"{stage} stage cannot pass with unresolved professional_review_items"
+        )
+
+    evidence_rows = csv_rows.get("evidence-register.csv", [])
+    evidence_ids: set[str] = set()
+    for row_number, row in enumerate(evidence_rows, start=2):
+        document_id = (row.get("document_id") or "").strip()
+        if document_id:
+            evidence_ids.add(document_id)
+        if not (row.get("source_locator") or "").strip():
+            report.error(f"evidence-register.csv row {row_number}: source_locator is required")
+        if normalized_status(row.get("completeness_status", "")) not in COMPLETE_STATUSES:
+            report.error(
+                f"evidence-register.csv row {row_number}: completeness_status is not cleared"
+            )
+
+    intake_rows = csv_rows.get("transaction-intake.csv", [])
+    intake_event_ids: set[str] = set()
+    for row_number, row in enumerate(intake_rows, start=2):
+        event_id = (row.get("economic_event_id") or "").strip()
+        if not event_id:
+            report.error(f"transaction-intake.csv row {row_number}: economic_event_id is required")
+        else:
+            intake_event_ids.add(event_id)
+        for field in (
+            "transaction_date", "description", "original_currency", "original_amount",
+            "document_id",
+        ):
+            if not (row.get(field) or "").strip():
+                report.error(f"transaction-intake.csv row {row_number}: {field} is required")
+        document_id = (row.get("document_id") or "").strip()
+        if document_id and document_id not in evidence_ids:
+            report.error(
+                f"transaction-intake.csv row {row_number}: document_id {document_id!r} is missing from evidence-register.csv"
+            )
+        if normalized_status(row.get("company_purpose_status", "")) not in COMPANY_PURPOSE_STATUSES:
+            report.error(
+                f"transaction-intake.csv row {row_number}: company_purpose_status is not confirmed"
+            )
+        if normalized_status(row.get("completeness_status", "")) not in COMPLETE_STATUSES:
+            report.error(
+                f"transaction-intake.csv row {row_number}: completeness_status is not cleared"
+            )
+        if normalized_status(row.get("dedup_status", "")) not in DEDUP_CLEAR_STATUSES:
+            report.error(
+                f"transaction-intake.csv row {row_number}: dedup_status is not cleared"
+            )
+        if normalized_status(row.get("proposed_status", "")) not in INTAKE_READY_STATUSES:
+            report.error(
+                f"transaction-intake.csv row {row_number}: proposed_status is not owner-confirmed or ready"
+            )
+
+    allowed_journal_statuses = {"POSTED"} if stage == "close" else JOURNAL_POSTING_STATUSES
+    journal_rows = csv_rows.get("journal.csv", [])
+    for row_number, row in enumerate(journal_rows, start=2):
+        event_id = (row.get("economic_event_id") or "").strip()
+        document_id = (row.get("document_id") or "").strip()
+        policy_id = (row.get("policy_id") or "").strip()
+        if not event_id:
+            report.error(f"journal.csv row {row_number}: economic_event_id is required")
+        elif event_id not in intake_event_ids:
+            report.error(
+                f"journal.csv row {row_number}: economic_event_id {event_id!r} is missing from transaction-intake.csv"
+            )
+        if not document_id:
+            report.error(f"journal.csv row {row_number}: document_id is required")
+        elif document_id not in evidence_ids:
+            report.error(
+                f"journal.csv row {row_number}: document_id {document_id!r} is missing from evidence-register.csv"
+            )
+        if not policy_id:
+            report.error(f"journal.csv row {row_number}: policy_id is required")
+        if not (row.get("approved_by") or "").strip():
+            report.error(f"journal.csv row {row_number}: approved_by is required")
+        if normalized_status(row.get("posting_status", "")) not in allowed_journal_statuses:
+            report.error(
+                f"journal.csv row {row_number}: posting_status is not valid for {stage}"
+            )
+
+    for row_number, row in enumerate(csv_rows.get("open-items.csv", []), start=2):
+        unresolved = normalized_status(row.get("status", "")) not in RESOLVED_STATUSES
+        if unresolved and boolean_value(row.get("professional_review_required", "")):
+            report.error(
+                f"open-items.csv row {row_number}: unresolved professional review blocks {stage}"
+            )
+        if stage == "close" and unresolved and boolean_value(row.get("blocks_close", "")):
+            report.error(
+                f"open-items.csv row {row_number}: unresolved blocks_close item prevents close"
+            )
+
+    if stage == "close":
+        reconciliation_path = pack_dir / "reconciliations.md"
+        if not markdown_has_substantive_content(reconciliation_path):
+            report.error("reconciliations.md: close requires substantive reconciliation results")
+
+        close_path = pack_dir / "monthly-close-checklist.md"
+        try:
+            close_text = close_path.read_text(encoding="utf-8")
+        except OSError:
+            close_text = ""
+        if re.search(r"^- \[ \]", close_text, re.MULTILINE):
+            report.error("monthly-close-checklist.md: close has unchecked control items")
+        if re.search(r"^\s*- Status:\s*`?OPEN`?\s*$", close_text, re.MULTILINE | re.IGNORECASE):
+            report.error("monthly-close-checklist.md: status is still OPEN")
+        decision_match = re.search(
+            r"^\s*- Decision to close or remain open:\s*(.+)$",
+            close_text,
+            re.MULTILINE | re.IGNORECASE,
+        )
+        if not decision_match or not decision_match.group(1).strip():
+            report.error("monthly-close-checklist.md: close decision is required")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate structural accounting-pack controls.")
     parser.add_argument("pack_dir", help="Company Accounting Pack directory")
@@ -453,6 +949,7 @@ def main() -> int:
     json_data = {}
     for name in [
         "company-profile.json",
+        "feature-selection.json",
         "interview-state.json",
         "accounting-policy-register.json",
         "version-manifest.json",
@@ -472,6 +969,12 @@ def main() -> int:
     manifest = json_data.get("version-manifest.json")
     if manifest is not None:
         validate_manifest(manifest, pack_dir, args.stage, state, report)
+
+    feature_selection = json_data.get("feature-selection.json")
+    if feature_selection is not None:
+        validate_feature_selection(
+            feature_selection, args.stage, state, manifest, report
+        )
 
     csv_rows: dict[str, list[dict[str, str]]] = {}
     for name, required_headers in CSV_REQUIRED_HEADERS.items():
@@ -524,6 +1027,8 @@ def main() -> int:
             report.error(f"{args.stage} stage requires a non-empty chart of accounts")
         if isinstance(policy_data, dict) and not policy_data.get("policies"):
             report.error(f"{args.stage} stage requires at least one accounting policy")
+
+    validate_operational_controls(pack_dir, args.stage, state, csv_rows, report)
 
     print(f"Company Accounting Pack validation: {pack_dir}")
     print(f"Stage: {args.stage}")

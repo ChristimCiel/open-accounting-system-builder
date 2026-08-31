@@ -7,7 +7,7 @@ authors:
     given-names: "Tim"
 repository-code: "https://github.com/ChristimCiel/open-accounting-system-builder"
 url: "https://github.com/ChristimCiel/open-accounting-system-builder"
-version: "1.1.0"
+version: "1.2.0"
 date-released: "2026-08-31"
 license: "Apache-2.0"
 abstract: "An open-source AI Skill for building company-specific, traceable accounting systems through progressive interviews and control validation."

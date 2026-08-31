@@ -7,6 +7,7 @@
 ```text
 accounting-system/
 ├── company-profile.json
+├── feature-selection.json
 ├── interview-state.json
 ├── industry-accounting-map.md
 ├── applicable-framework.md
@@ -32,6 +33,10 @@ accounting-system/
 
 僅收納建議所需的事實與匿名識別，包含地區、組織型態、業務、階段、會計期間、幣別、收入流、通路、銀行/卡片末四碼或匿名 ID、使用者角色、專業顧問狀態與資料分級。
 
+### `feature-selection.json`
+
+保留所有已呈現功能的推薦狀態、是否啟用、優先順序、理由、相依功能與專業覆核需求。目錄功能使用 `source: catalog`，使用者新增的功能使用 `source: custom` 並記錄期望結果、輸入、輸出與頻率。AI 推薦不得自動成為 `OWNER_CONFIRMED`；已確認組合的每次變更都要進入 `change_history`。
+
 ### `accounting-policy-register.json`
 
 每條政策使用 baseline controls 中的欄位。影響法定、稅務或財報者不得只有老闆確認狀態而沒有專業覆核標記。
@@ -55,10 +60,15 @@ accounting-system/
 
 1. 找不到某家示範公司的統編、人名、客戶、供應商單據號、金額、帳號或實際交易。
 2. 已確認事實、AI 建議、官方來源、待補與專業判斷可區分。
-3. 正式 master 唯一且有版本；原始檔未被覆蓋。
-4. 代表性交易試跑中，重複不入帳、衝突不猜、信用卡繳款不重複列費用、平台淨撥款可調節至總銷售/手續費。
-5. 借貸平衡、必填欄位、重複鍵、憑證連結、open items、對帳差異與版本檢查有結果。
+3. 功能組合可多選、可新增自訂功能、可停用並有歷史；AI 推薦與負責人確認可區分。
+4. 正式 master 唯一且有版本；原始檔未被覆蓋。
+5. 代表性交易試跑中，重複不入帳、衝突不猜、信用卡繳款不重複列費用、平台淨撥款可調節至總銷售/手續費。
+6. 借貸平衡、必填欄位、重複鍵、憑證連結、open items、對帳差異與版本檢查有結果。
 
-使用 `scripts/validate_company_pack.py <公司包> --stage onboarding|draft|posting|close` 檢查結構、訪談狀態、gate、manifest、JSON、CSV 必填、重複鍵與借貸平衡。空白 scaffold 只可在 `onboarding` 階段通過並必須顯示尚不可入帳；`posting` 或 `close` 階段還必須通過對應關卡與正式 master 檢查。驗證通過只代表該階段的機械性控制通過，不代表會計/稅務正確。
+使用 `scripts/validate_company_pack.py <公司包> --stage onboarding|draft|posting|close` 檢查結構、功能 revision、訪談狀態、gate、manifest、JSON、CSV 必填、重複鍵與借貸平衡。空白 scaffold 只可在 `onboarding` 階段通過並必須顯示尚不可入帳。`posting` 與 `close` 的固定控制不受功能開關影響：必須有當期官方來源、已確認功能 revision、完整證據與來源連結、已清除的查重/用途/完整性狀態、人工審批、交易與分錄串聯，且不能有尚未解決的專業判斷；`close` 再加對帳結果、無未勾選月結控制、關帳決定與無阻擋項目。驗證通過只代表該階段的機械性控制通過，不代表會計/稅務正確。
 
 初始化參數必須有非空白授權參照與授權者。若既有 `interview-state.json` 的授權 metadata 無效，初始化腳本必須先失敗；人工檢視後才可用 `--repair-authorization` 明確補登，不得靜默保留或覆蓋。
+
+## 從 Skill 1.1 升級
+
+1.1 Company Pack 不包含功能選擇。升級時保留原包，在新版本新增 `feature-selection.json`，將 `interview-state.json` 與 manifest 的 `schema_version` 升為 `1.2`，補上 `planned_modes`、`feature_selection_revision` 與 `feature_selection_status`。然後以舊包中已有的產物當作 AI 預選來源，顯示 O1–O8 差異給負責人確認；不得因檔案已存在就自動寫成 `OWNER_CONFIRMED`。升級完成前只可繼續閱讀與草案工作，不通過 posting/close 驗證。
