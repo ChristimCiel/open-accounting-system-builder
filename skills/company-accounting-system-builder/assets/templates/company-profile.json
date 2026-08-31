@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "company_id": "",
+  "display_name": "",
+  "jurisdictions": [],
+  "legal_form": "",
+  "operating_stage": "",
+  "fiscal_year_end": "",
+  "functional_currency": "",
+  "reporting_currency": "",
+  "actual_business_activities": [],
+  "revenue_streams": [],
+  "payment_channels": [],
+  "fund_accounts": [],
+  "accounting_system_of_record": "",
+  "professional_advisors": [],
+  "roles": [],
+  "data_classification": {
+    "default": "CONFIDENTIAL",
+    "restricted_fields": []
+  },
+  "facts": [],
+  "assumptions": [],
+  "open_questions": [],
+  "updated_at": ""
+}

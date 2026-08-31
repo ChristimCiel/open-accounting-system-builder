@@ -1,0 +1,31 @@
+name: Feature request
+description: Propose a reusable improvement to the open-source Skill
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the general user problem. Do not include confidential company facts or professional advice.
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+    validations:
+      required: true
+  - type: input
+    id: jurisdiction
+    attributes:
+      label: Jurisdiction, if relevant
+      placeholder: Global, Taiwan, United States, etc.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Suggested acceptance scenario
+      description: Use synthetic facts and describe observable behavior.

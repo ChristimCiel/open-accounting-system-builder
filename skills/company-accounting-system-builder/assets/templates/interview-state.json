@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.1",
+  "mode": "setup",
+  "workflow_stage": "onboarding",
+  "readiness": "SCAFFOLD_NOT_READY_FOR_POSTING",
+  "current_gate": "G0",
+  "gates": {
+    "G0": {"status": "AWAITING_CONFIRMATION", "confirmed_by": "", "confirmed_at": "", "evidence": []},
+    "G1": {"status": "NOT_STARTED", "confirmed_by": "", "confirmed_at": "", "evidence": []},
+    "G2": {"status": "NOT_STARTED", "confirmed_by": "", "confirmed_at": "", "evidence": []},
+    "G3": {"status": "NOT_STARTED", "confirmed_by": "", "confirmed_at": "", "evidence": []},
+    "G4": {"status": "NOT_STARTED", "confirmed_by": "", "confirmed_at": "", "evidence": []}
+  },
+  "persistence_authorization": {
+    "status": "NOT_GRANTED",
+    "source_type": "",
+    "source_locator": "",
+    "scope": [],
+    "authorized_by": "",
+    "authorized_at": ""
+  },
+  "last_completed_block": "",
+  "confirmed_facts": [],
+  "owner_confirmed_decisions": [],
+  "ai_proposals": [],
+  "assumptions": [],
+  "official_sources_checked": [],
+  "open_questions": [],
+  "conflicts": [],
+  "professional_review_items": [],
+  "next_questions": [],
+  "updated_at": ""
+}

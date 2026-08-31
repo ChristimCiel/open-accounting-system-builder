@@ -1,0 +1,5 @@
+interface:
+  display_name: "Open Accounting System Builder"
+  short_description: "Build a traceable accounting system through guided interviews"
+  brand_color: "#0F766E"
+  default_prompt: "Use $company-accounting-system-builder to interview me progressively, explain my industry's accounting, and build a company-specific Accounting Pack."

@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.1",
+  "skill_name": "company-accounting-system-builder",
+  "skill_version": "1.1.0",
+  "company_pack_version": "0.1-scaffold",
+  "status": "SCAFFOLD_NOT_READY_FOR_POSTING",
+  "workflow_stage": "onboarding",
+  "current_gate": "G0",
+  "period": "",
+  "system_of_record": "",
+  "source_files": [],
+  "output_files": [
+    "company-profile.json",
+    "interview-state.json",
+    "industry-accounting-map.md",
+    "applicable-framework.md",
+    "system-recommendation.md",
+    "accounting-policy-register.json",
+    "chart-of-accounts.csv",
+    "transaction-intake.csv",
+    "journal.csv",
+    "evidence-register.csv",
+    "open-items.csv",
+    "reconciliations.md",
+    "monthly-close-checklist.md",
+    "professional-review-pack.md",
+    "change-log.md",
+    "version-manifest.json"
+  ],
+  "validation": {
+    "ran_at": "",
+    "stage": "onboarding",
+    "status": "NOT_RUN",
+    "errors": 0,
+    "warnings": 0
+  },
+  "unresolved_item_count": 0,
+  "previous_version": "",
+  "change_summary": "Empty scaffold only; not ready for posting, closing, filing, or professional reliance.",
+  "generated_at": "",
+  "updated_at": ""
+}
